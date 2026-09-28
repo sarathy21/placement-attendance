@@ -42,6 +42,42 @@ async function main() {
     },
   });
 
+  // Second Department/Course/Batch for relationship validation testing
+  const cseDept = await prisma.department.upsert({
+    where: { code: 'CSE' },
+    update: {},
+    create: {
+      code: 'CSE',
+      name: 'Computer Science and Engineering',
+    },
+  });
+
+  const cseCourse = await prisma.course.upsert({
+    where: { code: 'BTECH-CSE' },
+    update: {},
+    create: {
+      code: 'BTECH-CSE',
+      name: 'B.Tech Computer Science and Engineering',
+      departmentId: cseDept.id,
+    },
+  });
+
+  await prisma.batch.upsert({
+    where: {
+      courseId_name: {
+        courseId: cseCourse.id,
+        name: '2024-2028',
+      },
+    },
+    update: {},
+    create: {
+      name: '2024-2028',
+      startYear: 2024,
+      endYear: 2028,
+      courseId: cseCourse.id,
+    },
+  });
+
   // Hashed development password for all seed accounts
   const devPasswordHash = await argon2.hash('password123');
 
