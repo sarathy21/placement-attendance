@@ -8,6 +8,8 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { QrTokenService } from './qr-token.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/enums/notification-type.enum';
 import { GenerateQrTokenDto } from './dto/generate-qr-token.dto';
 import { ScanQrTokenDto } from './dto/scan-qr-token.dto';
 import { AttendanceMethod, AttendanceStatus, SessionStatus, UserRole, UserStatus, Prisma } from '@prisma/client';
@@ -18,6 +20,7 @@ export class AttendanceService {
     private readonly prisma: PrismaService,
     private readonly auditLogService: AuditLogService,
     private readonly qrTokenService: QrTokenService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   // ==========================================
@@ -183,7 +186,7 @@ export class AttendanceService {
             ? AttendanceStatus.PRESENT
             : AttendanceStatus.LATE;
 
-        // Create Attendance record (Hard unique constraint @@unique([sessionId, studentId]))
+        // Create Attendance record
         try {
           const attendance = await tx.attendance.create({
             data: {
@@ -195,7 +198,7 @@ export class AttendanceService {
               markedAt: now,
             },
             include: {
-              student: { select: { id: true, registerNumber: true, firstName: true, lastName: true, collegeEmail: true } },
+              student: { select: { id: true, userId: true, registerNumber: true, firstName: true, lastName: true, collegeEmail: true } },
               session: { select: { id: true, title: true, status: true } },
             },
           });
@@ -223,6 +226,21 @@ export class AttendanceService {
         },
         ipAddress,
       });
+
+      // Post-Commit Notification Processing
+      if (result.student && result.student.userId) {
+        await this.notificationsService.dispatchNotifications({
+          recipientUserIds: [result.student.userId],
+          title: 'Attendance Recorded',
+          body: `Your attendance was marked ${result.status}.`,
+          payload: {
+            notificationType: NotificationType.ATTENDANCE_RECORDED,
+            relatedEntityId: result.id,
+            sessionId: result.sessionId,
+            attendanceId: result.id,
+          },
+        });
+      }
 
       return {
         success: true,

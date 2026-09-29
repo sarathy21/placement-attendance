@@ -7,6 +7,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/enums/notification-type.enum';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { UpdateSessionDto } from './dto/update-session.dto';
 import { GetSessionsFilterDto } from './dto/get-sessions-filter.dto';
@@ -18,6 +20,7 @@ export class SessionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditLogService: AuditLogService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   // ==========================================
@@ -167,10 +170,8 @@ export class SessionsService {
       if (!staff || staff.user.status !== UserStatus.ACTIVE) {
         throw new ForbiddenException('Staff account is not active or found');
       }
-      // Rule 1 & 2: STAFF must use their own staffId and cannot reassign
       conductingStaffId = staff.id;
     } else {
-      // ADMIN or SUPER_ADMIN
       if (!dto.staffId) {
         throw new BadRequestException('staffId is required when session is created by Admin');
       }
@@ -209,7 +210,7 @@ export class SessionsService {
         isPlacementEligible: true,
         user: { status: UserStatus.ACTIVE },
       },
-      select: { id: true },
+      select: { id: true, userId: true },
     });
 
     // 7. Atomic Transactional Session & Roster Creation
@@ -265,6 +266,21 @@ export class SessionsService {
       },
       ipAddress,
     });
+
+    // 9. Post-Commit Notification Processing
+    const recipientUserIds = targetStudents.map((s) => s.userId);
+    if (recipientUserIds.length > 0) {
+      await this.notificationsService.dispatchNotifications({
+        recipientUserIds,
+        title: 'New Placement Session',
+        body: 'A new placement session has been scheduled.',
+        payload: {
+          notificationType: NotificationType.SESSION_SCHEDULED,
+          relatedEntityId: result.session.id,
+          sessionId: result.session.id,
+        },
+      });
+    }
 
     return {
       ...result.session,
@@ -369,7 +385,6 @@ export class SessionsService {
       const student = await this.prisma.student.findUnique({ where: { userId: currentUser.id } });
       if (!student) throw new NotFoundException('Student profile not found');
 
-      // Filter sessions where student belongs to SessionStudent roster
       where.sessionStudents = {
         some: { studentId: student.id, isEligible: true },
       };
@@ -462,7 +477,7 @@ export class SessionsService {
       }
     }
 
-    // Freeze Checks: Rule 4 & 6
+    // Freeze Checks
     if (session.status !== SessionStatus.SCHEDULED) {
       throw new BadRequestException(
         `Session details and roster are frozen because session status is '${session.status}'`,
@@ -508,13 +523,40 @@ export class SessionsService {
     // Overlap Prevention Check
     await this.checkOverlaps(targetVenueId, conductingStaffId, start, end, id);
 
+    // Check trigger fields for SESSION_UPDATED
+    const isSessionDateChanged =
+      dto.sessionDate !== undefined &&
+      new Date(dto.sessionDate).toISOString().split('T')[0] !==
+        new Date(session.sessionDate).toISOString().split('T')[0];
+    const isStartTimeChanged =
+      dto.startTime !== undefined && new Date(dto.startTime).getTime() !== session.startTime.getTime();
+    const isEndTimeChanged =
+      dto.endTime !== undefined && new Date(dto.endTime).getTime() !== session.endTime.getTime();
+    const isVenueChanged = dto.venueId !== undefined && dto.venueId !== session.venueId;
+    const isStaffChanged = dto.staffId !== undefined && dto.staffId !== session.staffId;
+    const isSubjectChanged = dto.subjectId !== undefined && dto.subjectId !== session.subjectId;
+    const isDeptChanged = dto.departmentId !== undefined && dto.departmentId !== session.departmentId;
+    const isCourseChanged = dto.courseId !== undefined && dto.courseId !== session.courseId;
+    const isBatchChanged = dto.batchId !== undefined && dto.batchId !== session.batchId;
+
+    const hasTriggerFieldChanged =
+      isSessionDateChanged ||
+      isStartTimeChanged ||
+      isEndTimeChanged ||
+      isVenueChanged ||
+      isStaffChanged ||
+      isSubjectChanged ||
+      isDeptChanged ||
+      isCourseChanged ||
+      isBatchChanged;
+
     const isScopeChanged =
       targetDeptId !== session.departmentId ||
       targetCourseId !== session.courseId ||
       targetBatchId !== session.batchId;
 
-    return this.prisma.$transaction(async (tx) => {
-      const updatedSession = await tx.classSession.update({
+    const updatedSession = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.classSession.update({
         where: { id },
         data: {
           title: dto.title ? dto.title.trim() : undefined,
@@ -539,7 +581,6 @@ export class SessionsService {
       });
 
       if (isScopeChanged) {
-        // Re-materialize SessionStudent roster if target scope changed while SCHEDULED
         await tx.sessionStudent.deleteMany({ where: { sessionId: id } });
 
         const newTargetStudents = await tx.student.findMany({
@@ -574,8 +615,32 @@ export class SessionsService {
         ipAddress,
       });
 
-      return updatedSession;
+      return updated;
     });
+
+    // Post-Commit Notification Processing
+    if (hasTriggerFieldChanged) {
+      const rosterEntries = await this.prisma.sessionStudent.findMany({
+        where: { sessionId: id, isEligible: true },
+        include: { student: { select: { userId: true } } },
+      });
+
+      const recipientUserIds = rosterEntries.map((r) => r.student.userId);
+      if (recipientUserIds.length > 0) {
+        await this.notificationsService.dispatchNotifications({
+          recipientUserIds,
+          title: 'Placement Session Updated',
+          body: 'The details of your scheduled placement session have been updated.',
+          payload: {
+            notificationType: NotificationType.SESSION_UPDATED,
+            relatedEntityId: id,
+            sessionId: id,
+          },
+        });
+      }
+    }
+
+    return updatedSession;
   }
 
   // ==========================================
@@ -613,6 +678,28 @@ export class SessionsService {
       details: { previousStatus: session.status, newStatus: status },
       ipAddress,
     });
+
+    // Post-Commit Notification Processing for Session Cancellation
+    if (status === SessionStatus.CANCELLED) {
+      const rosterEntries = await this.prisma.sessionStudent.findMany({
+        where: { sessionId: id, isEligible: true },
+        include: { student: { select: { userId: true } } },
+      });
+
+      const recipientUserIds = rosterEntries.map((r) => r.student.userId);
+      if (recipientUserIds.length > 0) {
+        await this.notificationsService.dispatchNotifications({
+          recipientUserIds,
+          title: 'Placement Session Cancelled',
+          body: 'The scheduled placement session has been cancelled.',
+          payload: {
+            notificationType: NotificationType.SESSION_CANCELLED,
+            relatedEntityId: id,
+            sessionId: id,
+          },
+        });
+      }
+    }
 
     return updatedSession;
   }

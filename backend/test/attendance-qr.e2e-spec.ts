@@ -97,6 +97,31 @@ describe('Phase 5: QR Attendance & Attendance Management (e2e)', () => {
     });
     subjectId = subject.id;
 
+    // Clean up any stale test sessions from previous runs or other test suites
+    const staleSessions = await prisma.classSession.findMany({
+      where: {
+        title: {
+          in: [
+            'Phase 5 Active QR Session',
+            'Phase 5 Scheduled Session',
+            'Phase 5 Completed Session',
+            'Phase 5 Cancelled Session',
+            'Attendance QR Notif Session',
+            'Notifications Test Session',
+            'Renamed Title Only Session',
+          ],
+        },
+      },
+      select: { id: true },
+    });
+    const staleIds = staleSessions.map((s) => s.id);
+    if (staleIds.length > 0) {
+      await prisma.qrAttendanceToken.deleteMany({ where: { sessionId: { in: staleIds } } });
+      await prisma.attendance.deleteMany({ where: { sessionId: { in: staleIds } } });
+      await prisma.sessionStudent.deleteMany({ where: { sessionId: { in: staleIds } } });
+      await prisma.classSession.deleteMany({ where: { id: { in: staleIds } } });
+    }
+
     // 3. Create test sessions for lifecycle states
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
@@ -187,9 +212,10 @@ describe('Phase 5: QR Attendance & Attendance Management (e2e)', () => {
     cancelledSessionId = cancelledRes.body.id;
 
     await request(app.getHttpServer())
-      .post(`/sessions/${cancelledSessionId}/cancel`)
+      .patch(`/sessions/${cancelledSessionId}/status`)
       .set('Authorization', `Bearer ${staffToken}`)
-      .expect(201);
+      .send({ status: 'CANCELLED' })
+      .expect(200);
   });
 
   describe('QR Token Generation (POST /attendance/qr/token)', () => {

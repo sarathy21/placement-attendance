@@ -10,6 +10,9 @@ import { VenuesModule } from './venues/venues.module';
 import { SubjectsModule } from './subjects/subjects.module';
 import { SessionsModule } from './sessions/sessions.module';
 import { AttendanceModule } from './attendance/attendance.module';
+import { FcmModule } from './fcm/fcm.module';
+import { DevicesModule } from './devices/devices.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -22,10 +25,11 @@ import { AttendanceModule } from './attendance/attendance.module';
     SubjectsModule,
     SessionsModule,
     AttendanceModule,
+    FcmModule,
+    DevicesModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {}
-
-
