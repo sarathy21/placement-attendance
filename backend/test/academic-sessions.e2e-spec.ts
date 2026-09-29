@@ -268,7 +268,8 @@ describe('Phase 4: Academic Management & Session Scheduling (e2e)', () => {
 
       expect(res.body).toHaveProperty('data');
       expect(res.body.data.length).toBeGreaterThanOrEqual(1);
-      expect(res.body.data[0].title).toBe('Java Full Stack Morning Session');
+      const titles = res.body.data.map((s: any) => s.title);
+      expect(titles).toContain('Java Full Stack Morning Session');
     });
 
     it('should return session for staff member who conducts the session', async () => {
@@ -364,7 +365,16 @@ describe('Phase 4: Academic Management & Session Scheduling (e2e)', () => {
   afterAll(async () => {
     // Cleanup created test sessions and reference records
     const testSessions = await prisma.classSession.findMany({
-      where: { title: { contains: 'Session' } },
+      where: {
+        OR: [
+          { title: { contains: 'Lifecycle' } },
+          { title: { contains: 'Morning' } },
+          { title: { contains: 'Conflicting' } },
+          { title: { contains: 'Cancelled' } },
+          { title: { contains: 'Too Short' } },
+          { title: { contains: 'Mismatched' } },
+        ],
+      },
       select: { id: true },
     });
     const sessionIds = testSessions.map((s) => s.id);
