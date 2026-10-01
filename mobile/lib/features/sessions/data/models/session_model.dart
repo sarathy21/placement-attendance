@@ -158,4 +158,17 @@ class SessionModel {
   }
 
   String get displayStaff => staff?.fullName ?? 'Faculty / Staff';
+
+  String get displayStatus {
+    switch (status) {
+      case SessionLifecycleStatus.scheduled:
+        return 'SCHEDULED';
+      case SessionLifecycleStatus.inProgress:
+        return 'IN_PROGRESS';
+      case SessionLifecycleStatus.completed:
+        return 'COMPLETED';
+      case SessionLifecycleStatus.cancelled:
+        return 'CANCELLED';
+    }
+  }
 }

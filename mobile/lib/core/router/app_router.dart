@@ -7,8 +7,12 @@ import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/splash_screen.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/profile/presentation/profile_screen.dart';
+import '../../features/sessions/presentation/schedule_session_screen.dart';
+import '../../features/sessions/presentation/staff_attendance_roster_screen.dart';
 import '../../features/sessions/presentation/staff_home_screen.dart';
+import '../../features/sessions/presentation/staff_qr_scanner_screen.dart';
 import '../../features/sessions/presentation/student_home_screen.dart';
+import '../../features/sessions/data/models/session_model.dart';
 import 'route_names.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -72,6 +76,28 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: RouteNames.profile,
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.scheduleSession,
+        builder: (context, state) => const ScheduleSessionScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.staffQrScanner,
+        builder: (context, state) {
+          final sessionId = state.uri.queryParameters['sessionId'];
+          final session = state.extra is SessionModel ? state.extra as SessionModel : null;
+          return StaffQrScannerScreen(
+            sessionId: sessionId,
+            session: session,
+          );
+        },
+      ),
+      GoRoute(
+        path: RouteNames.staffAttendanceRoster,
+        builder: (context, state) {
+          final sessionId = state.pathParameters['id'] ?? '';
+          return StaffAttendanceRosterScreen(sessionId: sessionId);
+        },
       ),
     ],
   );

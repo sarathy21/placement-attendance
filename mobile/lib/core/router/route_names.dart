@@ -5,4 +5,7 @@ class RouteNames {
   static const String staffHome = '/staff/home';
   static const String adminNotice = '/admin/restricted';
   static const String profile = '/profile';
+  static const String scheduleSession = '/sessions/schedule';
+  static const String staffQrScanner = '/sessions/scan';
+  static const String staffAttendanceRoster = '/sessions/attendance/:id';
 }
