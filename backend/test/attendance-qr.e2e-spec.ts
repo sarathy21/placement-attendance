@@ -124,9 +124,13 @@ describe('Phase 5: QR Attendance & Attendance Management (e2e)', () => {
 
     // 3. Create test sessions for lifecycle states
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    const todayStr = now.toLocaleDateString('sv', { timeZone: 'Asia/Kolkata' });
 
     // IN_PROGRESS Session
+    const inProgressStart = new Date(now.getTime() - 10 * 60 * 1000);
+    const inProgressEnd = new Date(now.getTime() + 50 * 60 * 1000);
+    const inProgressDateStr = inProgressStart.toLocaleDateString('sv', { timeZone: 'Asia/Kolkata' });
+
     const inProgressRes = await request(app.getHttpServer())
       .post('/sessions')
       .set('Authorization', `Bearer ${staffToken}`)
@@ -137,9 +141,9 @@ describe('Phase 5: QR Attendance & Attendance Management (e2e)', () => {
         departmentId,
         courseId,
         batchId,
-        sessionDate: todayStr,
-        startTime: new Date(now.getTime() - 10 * 60 * 1000).toISOString(), // Started 10 mins ago
-        endTime: new Date(now.getTime() + 50 * 60 * 1000).toISOString(),
+        sessionDate: inProgressDateStr,
+        startTime: inProgressStart.toISOString(),
+        endTime: inProgressEnd.toISOString(),
       })
       .expect(201);
     inProgressSessionId = inProgressRes.body.id;
@@ -152,6 +156,10 @@ describe('Phase 5: QR Attendance & Attendance Management (e2e)', () => {
       .expect(200);
 
     // SCHEDULED Session
+    const scheduledStart = new Date(now.getTime() + 120 * 60 * 1000);
+    const scheduledEnd = new Date(now.getTime() + 180 * 60 * 1000);
+    const scheduledDateStr = scheduledStart.toLocaleDateString('sv', { timeZone: 'Asia/Kolkata' });
+
     const scheduledRes = await request(app.getHttpServer())
       .post('/sessions')
       .set('Authorization', `Bearer ${staffToken}`)
@@ -162,14 +170,18 @@ describe('Phase 5: QR Attendance & Attendance Management (e2e)', () => {
         departmentId,
         courseId,
         batchId,
-        sessionDate: todayStr,
-        startTime: new Date(now.getTime() + 120 * 60 * 1000).toISOString(),
-        endTime: new Date(now.getTime() + 180 * 60 * 1000).toISOString(),
+        sessionDate: scheduledDateStr,
+        startTime: scheduledStart.toISOString(),
+        endTime: scheduledEnd.toISOString(),
       })
       .expect(201);
     scheduledSessionId = scheduledRes.body.id;
 
     // COMPLETED Session
+    const completedStart = new Date(now.getTime() - 120 * 60 * 1000);
+    const completedEnd = new Date(now.getTime() - 60 * 60 * 1000);
+    const completedDateStr = completedStart.toLocaleDateString('sv', { timeZone: 'Asia/Kolkata' });
+
     const completedRes = await request(app.getHttpServer())
       .post('/sessions')
       .set('Authorization', `Bearer ${staffToken}`)
@@ -180,9 +192,9 @@ describe('Phase 5: QR Attendance & Attendance Management (e2e)', () => {
         departmentId,
         courseId,
         batchId,
-        sessionDate: todayStr,
-        startTime: new Date(now.getTime() - 120 * 60 * 1000).toISOString(),
-        endTime: new Date(now.getTime() - 60 * 60 * 1000).toISOString(),
+        sessionDate: completedDateStr,
+        startTime: completedStart.toISOString(),
+        endTime: completedEnd.toISOString(),
       })
       .expect(201);
     completedSessionId = completedRes.body.id;

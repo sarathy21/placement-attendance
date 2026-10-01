@@ -51,6 +51,13 @@ enum DevicePlatform {
   IOS
 }
 
+enum DriveStatus {
+  UPCOMING
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
 // ==========================================
 // CORE AUTHENTICATION & USERS
 // ==========================================
@@ -165,6 +172,7 @@ model Staff {
 
   conductedSessions ClassSession[]
   markedAttendances Attendance[]
+  createdDrives     PlacementDrive[]
 
   @@map("staff")
 }
@@ -221,9 +229,10 @@ model ClassSession {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
-  sessionStudents SessionStudent[]
-  attendances     Attendance[]
-  qrTokens        QrAttendanceToken[]
+  sessionStudents     SessionStudent[]
+  attendances         Attendance[]
+  qrTokens            QrAttendanceToken[]
+  placementDriveRound PlacementDriveRound?
 
   @@map("class_sessions")
 }
@@ -277,6 +286,45 @@ model QrAttendanceToken {
 
   @@index([tokenHash, isUsed, expiresAt])
   @@map("qr_attendance_tokens")
+}
+
+// ==========================================
+// PLACEMENT DRIVE & CALENDAR DOMAIN
+// ==========================================
+
+model PlacementDrive {
+  id                String      @id @default(uuid())
+  companyName       String
+  driveDate         DateTime    @db.Date
+  venue             String
+  description       String?
+  status            DriveStatus @default(UPCOMING)
+  attendanceEnabled Boolean     @default(false)
+  createdById       String
+  createdBy         Staff       @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  rounds PlacementDriveRound[]
+
+  @@map("placement_drives")
+}
+
+model PlacementDriveRound {
+  id          String         @id @default(uuid())
+  driveId     String
+  drive       PlacementDrive @relation(fields: [driveId], references: [id], onDelete: Cascade)
+  roundName   String
+  roundOrder  Int
+  date        DateTime?
+  venue       String?
+  description String?
+  sessionId   String?        @unique
+  session     ClassSession?  @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@map("placement_drive_rounds")
 }
 
 // ==========================================
