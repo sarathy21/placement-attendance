@@ -206,6 +206,10 @@ describe('Phase 5: QR Attendance & Attendance Management (e2e)', () => {
       .expect(200);
 
     // CANCELLED Session
+    const cancelledStart = new Date(now.getTime() + 200 * 60 * 1000);
+    const cancelledEnd = new Date(now.getTime() + 260 * 60 * 1000);
+    const cancelledDateStr = cancelledStart.toLocaleDateString('sv', { timeZone: 'Asia/Kolkata' });
+
     const cancelledRes = await request(app.getHttpServer())
       .post('/sessions')
       .set('Authorization', `Bearer ${staffToken}`)
@@ -216,9 +220,9 @@ describe('Phase 5: QR Attendance & Attendance Management (e2e)', () => {
         departmentId,
         courseId,
         batchId,
-        sessionDate: todayStr,
-        startTime: new Date(now.getTime() + 200 * 60 * 1000).toISOString(),
-        endTime: new Date(now.getTime() + 260 * 60 * 1000).toISOString(),
+        sessionDate: cancelledDateStr,
+        startTime: cancelledStart.toISOString(),
+        endTime: cancelledEnd.toISOString(),
       })
       .expect(201);
     cancelledSessionId = cancelledRes.body.id;
