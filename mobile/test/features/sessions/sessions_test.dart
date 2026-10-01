@@ -12,12 +12,13 @@ import 'package:placement_attendance_mobile/features/sessions/presentation/sessi
 import 'package:placement_attendance_mobile/features/sessions/presentation/student_sessions_screen.dart';
 
 void main() {
+  final now = DateTime.now();
   final testSessionScheduled = SessionModel(
     id: 'session-001',
     title: 'Aptitude & Technical Orientation',
-    sessionDate: DateTime(2026, 10, 1),
-    startTime: DateTime(2026, 10, 1, 10, 0),
-    endTime: DateTime(2026, 10, 1, 12, 0),
+    sessionDate: DateTime(now.year, now.month, now.day),
+    startTime: DateTime(now.year, now.month, now.day, 10, 0),
+    endTime: DateTime(now.year, now.month, now.day, 12, 0),
     status: SessionLifecycleStatus.scheduled,
     subject: const SessionSubjectModel(id: 'sub-01', code: 'MCA301', title: 'Placement Aptitude'),
     venue: const SessionVenueModel(id: 'ven-01', name: 'Auditorium A', building: 'Block 1'),
@@ -27,9 +28,9 @@ void main() {
   final testSessionInProgress = SessionModel(
     id: 'session-002',
     title: 'Coding Mock Interview',
-    sessionDate: DateTime(2026, 10, 1),
-    startTime: DateTime(2026, 10, 1, 9, 0),
-    endTime: DateTime(2026, 10, 1, 11, 0),
+    sessionDate: DateTime(now.year, now.month, now.day),
+    startTime: DateTime(now.year, now.month, now.day, 9, 0),
+    endTime: DateTime(now.year, now.month, now.day, 11, 0),
     status: SessionLifecycleStatus.inProgress,
     subject: const SessionSubjectModel(id: 'sub-02', code: 'MCA302', title: 'Coding Practice'),
     venue: const SessionVenueModel(id: 'ven-02', name: 'Lab 3', building: 'Block 2'),
