@@ -13,7 +13,22 @@ final placementDrivesListProvider = FutureProvider.family<List<PlacementDriveMod
   return repo.getDrives(status: statusFilter);
 });
 
+final placementDrivesProvider = FutureProvider<List<PlacementDriveModel>>((ref) async {
+  final repo = ref.watch(placementDrivesRepositoryProvider);
+  return repo.getDrives();
+});
+
+final nextUpcomingDriveProvider = FutureProvider<PlacementDriveModel?>((ref) async {
+  final drives = await ref.watch(placementDrivesProvider.future);
+  if (drives.isEmpty) return null;
+  final upcoming = drives.where((d) => d.status == DriveStatus.upcoming || d.status == DriveStatus.ongoing).toList();
+  if (upcoming.isEmpty) return null;
+  upcoming.sort((a, b) => a.driveDate.compareTo(b.driveDate));
+  return upcoming.first;
+});
+
 final placementDriveDetailProvider = FutureProvider.family<PlacementDriveModel, String>((ref, id) async {
   final repo = ref.watch(placementDrivesRepositoryProvider);
   return repo.getDriveDetail(id);
 });
+

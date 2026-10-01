@@ -97,4 +97,9 @@ class PlacementDriveModel {
       rounds: roundsList,
     );
   }
+
+  String get formattedDriveDate {
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${driveDate.day} ${months[driveDate.month - 1]} ${driveDate.year}';
+  }
 }

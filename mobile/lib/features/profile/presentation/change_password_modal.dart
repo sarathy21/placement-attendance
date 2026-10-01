@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/widgets/primary_button.dart';
 import '../../auth/domain/auth_state.dart';
 import '../../auth/providers/auth_provider.dart';
 
@@ -15,12 +16,17 @@ class _ChangePasswordModalState extends ConsumerState<ChangePasswordModal> {
   final _formKey = GlobalKey<FormState>();
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   bool _isLoading = false;
+  bool _obscureCurrent = true;
+  bool _obscureNew = true;
+  bool _obscureConfirm = true;
 
   @override
   void dispose() {
     _currentPasswordController.dispose();
     _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -72,17 +78,34 @@ class _ChangePasswordModalState extends ConsumerState<ChangePasswordModal> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Change Password',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Change Password',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: AppColors.textSecondary),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _currentPasswordController,
-              obscureText: true,
-              decoration: const InputDecoration(
+              obscureText: _obscureCurrent,
+              decoration: InputDecoration(
                 labelText: 'Current Password',
-                prefixIcon: Icon(Icons.lock_outline),
+                prefixIcon: const Icon(Icons.lock_outline),
+                suffixIcon: IconButton(
+                  icon: Icon(_obscureCurrent ? Icons.visibility_off : Icons.visibility),
+                  onPressed: () => setState(() => _obscureCurrent = !_obscureCurrent),
+                ),
               ),
               validator: (val) {
                 if (val == null || val.isEmpty) {
@@ -94,28 +117,46 @@ class _ChangePasswordModalState extends ConsumerState<ChangePasswordModal> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _newPasswordController,
-              obscureText: true,
-              decoration: const InputDecoration(
+              obscureText: _obscureNew,
+              decoration: InputDecoration(
                 labelText: 'New Password',
-                prefixIcon: Icon(Icons.lock_reset),
+                prefixIcon: const Icon(Icons.lock_reset),
+                suffixIcon: IconButton(
+                  icon: Icon(_obscureNew ? Icons.visibility_off : Icons.visibility),
+                  onPressed: () => setState(() => _obscureNew = !_obscureNew),
+                ),
               ),
               validator: (val) {
-                if (val == null || val.length < 6) {
-                  return 'New password must be at least 6 characters';
+                if (val == null || val.length < 8) {
+                  return 'New password must be at least 8 characters long';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _confirmPasswordController,
+              obscureText: _obscureConfirm,
+              decoration: InputDecoration(
+                labelText: 'Confirm New Password',
+                prefixIcon: const Icon(Icons.lock_reset_outlined),
+                suffixIcon: IconButton(
+                  icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility),
+                  onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                ),
+              ),
+              validator: (val) {
+                if (val != _newPasswordController.text) {
+                  return 'Passwords do not match';
                 }
                 return null;
               },
             ),
             const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _isLoading ? null : _submit,
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                    )
-                  : const Text('UPDATE PASSWORD'),
+            PrimaryButton(
+              text: 'UPDATE PASSWORD',
+              isLoading: _isLoading,
+              onPressed: _submit,
             ),
           ],
         ),
@@ -123,3 +164,4 @@ class _ChangePasswordModalState extends ConsumerState<ChangePasswordModal> {
     );
   }
 }
+
