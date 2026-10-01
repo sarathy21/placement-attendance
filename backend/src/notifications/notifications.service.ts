@@ -234,7 +234,7 @@ export class NotificationsService {
           const matchingRecord = validDeviceRecords.find((r) => r.token === invalidTok);
           if (matchingRecord) {
             await this.prisma.deviceToken
-              .delete({ where: { id: matchingRecord.id } })
+              .deleteMany({ where: { id: matchingRecord.id } })
               .catch((err) => this.logger.error('Failed deleting invalid FCM token', err));
 
             await this.auditLogService.log({
