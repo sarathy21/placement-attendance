@@ -14,6 +14,7 @@ import { FcmModule } from './fcm/fcm.module';
 import { DevicesModule } from './devices/devices.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PlacementDrivesModule } from './placement-drives/placement-drives.module';
+import { StaffModule } from './staff/staff.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { PlacementDrivesModule } from './placement-drives/placement-drives.modul
     AuditLogModule,
     AuthModule,
     StudentsModule,
+    StaffModule,
     AcademicModule,
     VenuesModule,
     SubjectsModule,
