@@ -11,6 +11,7 @@ const routeTitles: Record<string, string> = {
   '/batches': 'Academic Batches',
   '/subjects': 'Subjects & Training Modules',
   '/venues': 'Campus Venues',
+  '/staff': 'Staff Management',
 };
 
 export function Header() {

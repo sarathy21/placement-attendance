@@ -12,6 +12,7 @@ import {
   BookOpen,
   MapPin,
   ShieldCheck,
+  UserCheck,
 } from 'lucide-react';
 
 const navItems = [
@@ -21,6 +22,7 @@ const navItems = [
   { name: 'Batches', href: '/batches', icon: Users },
   { name: 'Subjects', href: '/subjects', icon: BookOpen },
   { name: 'Venues', href: '/venues', icon: MapPin },
+  { name: 'Staff Members', href: '/staff', icon: UserCheck },
 ];
 
 export function Sidebar() {

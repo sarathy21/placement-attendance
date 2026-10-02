@@ -137,3 +137,63 @@ export interface UpdateVenueInput {
   building?: string;
   capacity?: number;
 }
+
+export interface Staff {
+  id: string;
+  userId: string;
+  staffId: string;
+  firstName: string;
+  lastName?: string | null;
+  designation?: string | null;
+  phoneNumber?: string | null;
+  departmentId?: string | null;
+  department?: Department | null;
+  user: User;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GetStaffFilterParams {
+  departmentId?: string;
+  status?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface StaffListResponse {
+  data: Staff[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export interface CreateStaffInput {
+  staffId: string;
+  email: string;
+  password: string;
+  firstName: string;
+  lastName?: string;
+  designation?: string;
+  phoneNumber?: string;
+  departmentId?: string;
+}
+
+export interface UpdateStaffInput {
+  firstName?: string;
+  lastName?: string;
+  designation?: string;
+  phoneNumber?: string;
+  departmentId?: string;
+}
+
+export interface UpdateStaffStatusInput {
+  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+}
+
+export interface ResetStaffPasswordInput {
+  password: string;
+}
