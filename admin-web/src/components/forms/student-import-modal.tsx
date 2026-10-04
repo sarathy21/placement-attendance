@@ -116,7 +116,7 @@ export function StudentImportModal({ isOpen, onClose }: StudentImportModalProps)
         lastName: r.data.lastName,
         departmentCode: r.data.departmentCode,
         courseCode: r.data.courseCode,
-        batchName: r.data.batchName,
+        placementBatchName: r.data.placementBatchName,
         phoneNumber: r.data.phoneNumber,
       }));
 
@@ -180,9 +180,9 @@ export function StudentImportModal({ isOpen, onClose }: StudentImportModalProps)
             <FileSpreadsheet className="w-12 h-12 text-emerald-600 mx-auto mb-3" />
             <p className="text-sm font-bold text-slate-900">Upload Placement Student Sheet (.xlsx)</p>
             <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-              Excel file must contain required columns: <br />
+              Supported Headers: <br />
               <code className="bg-slate-100 px-1 py-0.5 rounded text-[11px] text-slate-800 font-mono">
-                registerNumber, collegeEmail, firstName, departmentCode, courseCode, batchName
+                Register No, Name, Email, Phone, Department, Course, Placement Batch
               </code>
             </p>
 
@@ -316,7 +316,7 @@ export function StudentImportModal({ isOpen, onClose }: StudentImportModalProps)
                     <th className="px-3 py-2">Name</th>
                     <th className="px-3 py-2">Dept</th>
                     <th className="px-3 py-2">Course</th>
-                    <th className="px-3 py-2">Batch</th>
+                    <th className="px-3 py-2">Placement Batch</th>
                     <th className="px-3 py-2">Status</th>
                     <th className="px-3 py-2">Errors</th>
                   </tr>
@@ -332,7 +332,7 @@ export function StudentImportModal({ isOpen, onClose }: StudentImportModalProps)
                       </td>
                       <td className="px-3 py-2 font-semibold text-slate-800">{r.data.departmentCode || '—'}</td>
                       <td className="px-3 py-2 font-semibold text-slate-800">{r.data.courseCode || '—'}</td>
-                      <td className="px-3 py-2 text-slate-600">{r.data.batchName || '—'}</td>
+                      <td className="px-3 py-2 font-semibold text-emerald-800">{r.data.placementBatchName || '—'}</td>
                       <td className="px-3 py-2">{getStatusBadge(r.status)}</td>
                       <td className="px-3 py-2">
                         {r.errors.length > 0 ? (

@@ -120,7 +120,7 @@ export default function CoursesPage() {
                   <th className="px-6 py-3.5">Course Code</th>
                   <th className="px-6 py-3.5">Course Name</th>
                   <th className="px-6 py-3.5">Department</th>
-                  <th className="px-6 py-3.5">Batches Count</th>
+                  <th className="px-6 py-3.5">Students Count</th>
                   <th className="px-6 py-3.5">Created Date</th>
                   <th className="px-6 py-3.5 text-right">Actions</th>
                 </tr>
@@ -140,7 +140,7 @@ export default function CoursesPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-slate-600">
-                      {course._count?.batches ?? 0} batches
+                      {course._count?.students ?? 0} students
                     </td>
                     <td className="px-6 py-4 text-slate-500 text-xs">{formatDate(course.createdAt)}</td>
                     <td className="px-6 py-4 text-right">

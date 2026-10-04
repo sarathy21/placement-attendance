@@ -67,6 +67,7 @@ class SessionStaffModel {
 class SessionModel {
   final String id;
   final String title;
+  final String? description;
   final DateTime sessionDate;
   final DateTime startTime;
   final DateTime endTime;
@@ -76,11 +77,12 @@ class SessionModel {
   final SessionStaffModel? staff;
   final Map<String, dynamic>? department;
   final Map<String, dynamic>? course;
-  final Map<String, dynamic>? batch;
+  final Map<String, dynamic>? placementBatch;
 
   const SessionModel({
     required this.id,
     required this.title,
+    this.description,
     required this.sessionDate,
     required this.startTime,
     required this.endTime,
@@ -90,7 +92,7 @@ class SessionModel {
     this.staff,
     this.department,
     this.course,
-    this.batch,
+    this.placementBatch,
   });
 
   factory SessionModel.fromJson(Map<String, dynamic> json) {
@@ -103,6 +105,7 @@ class SessionModel {
     return SessionModel(
       id: json['id'] ?? '',
       title: json['title'] ?? '',
+      description: json['description']?.toString(),
       sessionDate: DateTime.tryParse(json['sessionDate'] ?? '') ?? DateTime.now(),
       startTime: DateTime.tryParse(json['startTime'] ?? '') ?? DateTime.now(),
       endTime: DateTime.tryParse(json['endTime'] ?? '') ?? DateTime.now(),
@@ -118,7 +121,9 @@ class SessionModel {
           : null,
       department: json['department'] is Map<String, dynamic> ? json['department'] : null,
       course: json['course'] is Map<String, dynamic> ? json['course'] : null,
-      batch: json['batch'] is Map<String, dynamic> ? json['batch'] : null,
+      placementBatch: json['placementBatch'] is Map<String, dynamic>
+          ? json['placementBatch']
+          : (json['batch'] is Map<String, dynamic> ? json['batch'] : null),
     );
   }
 
@@ -141,6 +146,9 @@ class SessionModel {
   }
 
   String get displaySubject {
+    if (description != null && description!.isNotEmpty) {
+      return description!;
+    }
     if (subject != null) {
       return subject!.code.isNotEmpty ? '${subject!.code} • ${subject!.title}' : subject!.title;
     }

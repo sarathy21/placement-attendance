@@ -1,4 +1,4 @@
-import { IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsDateString, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateSessionDto {
@@ -7,10 +7,15 @@ export class CreateSessionDto {
   @IsNotEmpty()
   title: string;
 
-  @ApiProperty({ description: 'Subject/Training Module UUID' })
+  @ApiPropertyOptional({ example: 'Aptitude & Technical Preparation', description: 'Session description' })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiPropertyOptional({ description: 'Subject/Training Module UUID (Optional)' })
+  @IsOptional()
   @IsUUID()
-  @IsNotEmpty()
-  subjectId: string;
+  subjectId?: string;
 
   @ApiProperty({ description: 'Venue UUID' })
   @IsUUID()
@@ -22,20 +27,20 @@ export class CreateSessionDto {
   @IsUUID()
   staffId?: string;
 
-  @ApiProperty({ description: 'Target Department UUID (Required for MVP targeting)' })
+  @ApiPropertyOptional({ description: 'Target Department UUID (Optional)' })
+  @IsOptional()
   @IsUUID()
-  @IsNotEmpty()
-  departmentId: string;
+  departmentId?: string;
 
   @ApiPropertyOptional({ description: 'Target Course UUID (Optional)' })
   @IsOptional()
   @IsUUID()
   courseId?: string;
 
-  @ApiPropertyOptional({ description: 'Target Batch UUID (Optional)' })
+  @ApiPropertyOptional({ description: 'Target Placement Batch UUID (Optional)' })
   @IsOptional()
   @IsUUID()
-  batchId?: string;
+  placementBatchId?: string;
 
   @ApiProperty({ example: '2026-09-30', description: 'Session date (YYYY-MM-DD or ISO string)' })
   @IsDateString()

@@ -28,25 +28,54 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void _initControllers() {
     final authState = ref.read(authNotifierProvider);
     if (authState is Authenticated && authState.profile != null) {
-      _phoneController.text = authState.profile!['phoneNumber'] ?? '';
-      _avatarUrlController.text = authState.profile!['avatarUrl'] ?? '';
+      _phoneController.text = authState.profile!['phoneNumber']?.toString() ?? '';
+      _avatarUrlController.text = authState.profile!['avatarUrl']?.toString() ?? '';
     }
   }
 
+  void _toggleEdit() {
+    setState(() {
+      if (_isEditing) {
+        // Discard local changes on cancel
+        _initControllers();
+        _isEditing = false;
+      } else {
+        _initControllers();
+        _isEditing = true;
+      }
+    });
+  }
+
   void _saveProfile() async {
+    final phone = _phoneController.text.trim();
+    final avatar = _avatarUrlController.text.trim();
+
+    final phoneRegex = RegExp(r'^[0-9]{10}$');
+    if (phone.isNotEmpty && !phoneRegex.hasMatch(phone)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Phone number must be strictly a 10-digit number format (e.g. 9876543210)'),
+          backgroundColor: AppColors.statusAbsent,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isUpdating = true);
 
     final success = await ref.read(authNotifierProvider.notifier).updateProfile(
           UpdateProfileDto(
-            phoneNumber: _phoneController.text.trim(),
-            avatarUrl: _avatarUrlController.text.trim(),
+            phoneNumber: phone,
+            avatarUrl: avatar,
           ),
         );
 
     if (mounted) {
       setState(() {
         _isUpdating = false;
-        _isEditing = false;
+        if (success) {
+          _isEditing = false;
+        }
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -163,12 +192,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       value: profile['course']?['name']?.toString() ?? profile['courseId']?.toString() ?? 'MCA',
                     ),
                   ],
-                  if (profile['batch'] != null || profile['batchId'] != null) ...[
+                  if (profile['placementBatch'] != null || profile['placementBatchId'] != null || profile['batch'] != null || profile['batchId'] != null) ...[
                     const Divider(height: 20),
                     _buildReadOnlyRow(
                       icon: Icons.group_outlined,
-                      label: 'Batch',
-                      value: profile['batch']?['name']?.toString() ?? profile['batchId']?.toString() ?? '2024-2026',
+                      label: 'Placement Batch',
+                      value: profile['placementBatch']?['name']?.toString() ??
+                          profile['batch']?['name']?.toString() ??
+                          profile['placementBatchId']?.toString() ??
+                          profile['batchId']?.toString() ??
+                          'N/A',
                     ),
                   ],
                   if (isStudent) ...[
@@ -199,9 +232,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             SectionHeader(
               title: 'Editable Contact Info',
               actionLabel: _isEditing ? 'Cancel' : 'Edit',
-              onAction: () {
-                setState(() => _isEditing = !_isEditing);
-              },
+              onAction: _toggleEdit,
             ),
             const SizedBox(height: 8),
             AppCard(

@@ -10,6 +10,7 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  ForbiddenException,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
@@ -18,6 +19,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes, ApiBody
 import { StudentsService } from './students.service';
 import { ExcelImportService } from './excel-import.service';
 import { GetStudentsFilterDto } from './dto/get-students-filter.dto';
+import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { UpdateStudentStatusDto } from './dto/update-student-status.dto';
 import { ConfirmImportDto } from './dto/confirm-import.dto';
@@ -27,7 +29,6 @@ import { UserRole } from '@prisma/client';
 
 @ApiTags('Student Onboarding & Management')
 @ApiBearerAuth()
-@Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
 @Controller('students')
 export class StudentsController {
   constructor(
@@ -36,6 +37,7 @@ export class StudentsController {
   ) {}
 
   @Get()
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.STAFF)
   @ApiOperation({ summary: 'List and search placement students with filtering and pagination' })
   @ApiResponse({ status: 200, description: 'Returns paginated list of placement students' })
   async findAll(@Query() filter: GetStudentsFilterDto) {
@@ -43,6 +45,7 @@ export class StudentsController {
   }
 
   @Get(':id')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.STAFF)
   @ApiOperation({ summary: 'Get placement student profile by ID' })
   @ApiResponse({ status: 200, description: 'Returns single student record with academic relations' })
   @ApiResponse({ status: 404, description: 'Student not found' })
@@ -50,7 +53,23 @@ export class StudentsController {
     return this.studentsService.findOne(id);
   }
 
+  @Post()
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Create a single placement student' })
+  @ApiResponse({ status: 201, description: 'Student created successfully' })
+  @ApiResponse({ status: 400, description: 'Validation error or academic mismatch' })
+  @ApiResponse({ status: 409, description: 'Register number or email already exists' })
+  async create(
+    @Body() dto: CreateStudentDto,
+    @CurrentUser('id') userId: string,
+    @Req() req: any,
+  ) {
+    const ipAddress = req.ip || req.socket?.remoteAddress;
+    return this.studentsService.create(dto, userId, ipAddress);
+  }
+
   @Patch(':id')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.STAFF)
   @ApiOperation({ summary: 'Update administrative details of a placement student' })
   @ApiResponse({ status: 200, description: 'Student record updated successfully' })
   @ApiResponse({ status: 400, description: 'Invalid data or academic relationship mismatch' })
@@ -58,13 +77,26 @@ export class StudentsController {
     @Param('id') id: string,
     @Body() dto: UpdateStudentDto,
     @CurrentUser('id') userId: string,
+    @CurrentUser('role') userRole: UserRole,
     @Req() req: any,
   ) {
+    if (userRole === UserRole.STAFF) {
+      const keys = Object.keys(dto).filter(
+        (key) => dto[key as keyof UpdateStudentDto] !== undefined,
+      );
+      const illegalKeys = keys.filter((key) => key !== 'placementBatchId');
+      if (illegalKeys.length > 0) {
+        throw new ForbiddenException(
+          'Staff members are only authorized to modify student placement batch assignments',
+        );
+      }
+    }
     const ipAddress = req.ip || req.socket?.remoteAddress;
     return this.studentsService.update(id, dto, userId, ipAddress);
   }
 
   @Patch(':id/status')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Update student account status (ACTIVE, INACTIVE, SUSPENDED)' })
   @ApiResponse({ status: 200, description: 'Student status updated successfully' })
   async updateStatus(
@@ -78,6 +110,7 @@ export class StudentsController {
   }
 
   @Post('import/preview')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
@@ -115,6 +148,7 @@ export class StudentsController {
   }
 
   @Post('import/confirm')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Confirm and execute transactional bulk import of validated student rows' })
   @ApiResponse({ status: 200, description: 'Students imported and activated successfully' })
   @ApiResponse({ status: 400, description: 'Import rejected due to validation or duplicate errors' })

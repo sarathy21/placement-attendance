@@ -34,7 +34,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
           include: {
             department: true,
             course: true,
-            batch: true,
+            placementBatch: true,
           },
         },
         staff: {

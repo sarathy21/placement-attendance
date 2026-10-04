@@ -108,8 +108,8 @@ export function StudentDetailModal({ isOpen, onClose, student }: StudentDetailMo
           <div className="flex items-start gap-3 p-3 rounded-lg border border-slate-100 bg-white shadow-2xs">
             <GraduationCap className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Academic Batch</p>
-              <p className="font-medium text-slate-900">{student.batch?.name || 'Unassigned'}</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Placement Batch</p>
+              <p className="font-medium text-slate-900">{student.placementBatch?.name || 'Unassigned'}</p>
             </div>
           </div>
 

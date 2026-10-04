@@ -274,7 +274,7 @@ export class AttendanceService {
         staff: true,
         department: true,
         course: true,
-        batch: true,
+        placementBatch: true,
       },
     });
 
@@ -388,8 +388,8 @@ export class AttendanceService {
       id: r.id,
       sessionId: r.sessionId,
       sessionTitle: r.session.title,
-      subjectCode: r.session.subject.code,
-      subjectTitle: r.session.subject.title,
+      subjectCode: r.session.subject?.code || null,
+      subjectTitle: r.session.subject?.title || r.session.description || r.session.title,
       venueName: r.session.venue.name,
       conductingStaffName: `${r.session.staff.firstName} ${r.session.staff.lastName || ''}`.trim(),
       attendanceStatus: r.status,

@@ -3,7 +3,6 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
-  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
@@ -74,7 +73,7 @@ export class SessionsService {
   ) {
     const activeStatuses: SessionStatus[] = [SessionStatus.SCHEDULED, SessionStatus.IN_PROGRESS];
 
-    // Venue overlap check: (requestedStart < existingEnd AND requestedEnd > existingStart)
+    // Venue overlap check
     const venueConflict = await this.prisma.classSession.findFirst({
       where: {
         id: excludeSessionId ? { not: excludeSessionId } : undefined,
@@ -112,16 +111,15 @@ export class SessionsService {
   }
 
   // ==========================================
-  // HELPER: Academic Hierarchy Scope Verification
+  // HELPER: Target Scope Verification
   // ==========================================
 
-  private async validateAcademicScope(departmentId: string, courseId?: string, batchId?: string) {
-    const dept = await this.prisma.department.findUnique({ where: { id: departmentId } });
-    if (!dept) {
-      throw new BadRequestException(`Department with ID '${departmentId}' does not exist`);
-    }
-
-    if (courseId) {
+  private async validateTargetScope(departmentId?: string, courseId?: string, placementBatchId?: string) {
+    if (departmentId && courseId) {
+      const dept = await this.prisma.department.findUnique({ where: { id: departmentId } });
+      if (!dept) {
+        throw new BadRequestException(`Department with ID '${departmentId}' does not exist`);
+      }
       const course = await this.prisma.course.findUnique({ where: { id: courseId } });
       if (!course) {
         throw new BadRequestException(`Course with ID '${courseId}' does not exist`);
@@ -131,18 +129,22 @@ export class SessionsService {
           `Course '${course.code}' does not belong to Department '${dept.code}'`,
         );
       }
+    } else if (courseId) {
+      const course = await this.prisma.course.findUnique({ where: { id: courseId } });
+      if (!course) {
+        throw new BadRequestException(`Course with ID '${courseId}' does not exist`);
+      }
+    } else if (departmentId) {
+      const dept = await this.prisma.department.findUnique({ where: { id: departmentId } });
+      if (!dept) {
+        throw new BadRequestException(`Department with ID '${departmentId}' does not exist`);
+      }
     }
 
-    if (batchId) {
-      if (!courseId) {
-        throw new BadRequestException('courseId must be provided when specifying batchId');
-      }
-      const batch = await this.prisma.batch.findUnique({ where: { id: batchId } });
-      if (!batch) {
-        throw new BadRequestException(`Batch with ID '${batchId}' does not exist`);
-      }
-      if (batch.courseId !== courseId) {
-        throw new BadRequestException(`Batch '${batch.name}' does not belong to the specified Course`);
+    if (placementBatchId) {
+      const pb = await this.prisma.placementBatch.findUnique({ where: { id: placementBatchId } });
+      if (!pb) {
+        throw new BadRequestException(`Placement batch with ID '${placementBatchId}' does not exist`);
       }
     }
   }
@@ -194,8 +196,8 @@ export class SessionsService {
     if (!subject) throw new BadRequestException(`Subject with ID '${dto.subjectId}' not found`);
     if (!venue) throw new BadRequestException(`Venue with ID '${dto.venueId}' not found`);
 
-    // 4. Academic Target Scope Verification
-    await this.validateAcademicScope(dto.departmentId, dto.courseId, dto.batchId);
+    // 4. Target Scope Verification
+    await this.validateTargetScope(dto.departmentId, dto.courseId, dto.placementBatchId);
 
     // 5. Overlap Prevention (Venue & Staff)
     await this.checkOverlaps(dto.venueId, conductingStaffId, start, end);
@@ -203,12 +205,12 @@ export class SessionsService {
     // 6. Query Eligible Placement Students Roster
     const targetStudents = await this.prisma.student.findMany({
       where: {
-        departmentId: dto.departmentId,
-        ...(dto.courseId && { courseId: dto.courseId }),
-        ...(dto.batchId && { batchId: dto.batchId }),
         status: UserStatus.ACTIVE,
         isPlacementEligible: true,
         user: { status: UserStatus.ACTIVE },
+        ...(dto.departmentId && { departmentId: dto.departmentId }),
+        ...(dto.courseId && { courseId: dto.courseId }),
+        ...(dto.placementBatchId && { placementBatchId: dto.placementBatchId }),
       },
       select: { id: true, userId: true },
     });
@@ -221,9 +223,9 @@ export class SessionsService {
           subjectId: dto.subjectId,
           venueId: dto.venueId,
           staffId: conductingStaffId,
-          departmentId: dto.departmentId,
+          departmentId: dto.departmentId || null,
           courseId: dto.courseId || null,
-          batchId: dto.batchId || null,
+          placementBatchId: dto.placementBatchId || null,
           sessionDate: sessionDateObj,
           startTime: start,
           endTime: end,
@@ -235,7 +237,7 @@ export class SessionsService {
           staff: true,
           department: true,
           course: true,
-          batch: true,
+          placementBatch: true,
         },
       });
 
@@ -263,6 +265,8 @@ export class SessionsService {
         rosterCount: result.rosterCount,
         staffId: conductingStaffId,
         departmentId: dto.departmentId,
+        courseId: dto.courseId,
+        placementBatchId: dto.placementBatchId,
       },
       ipAddress,
     });
@@ -299,7 +303,7 @@ export class SessionsService {
       staffId,
       departmentId,
       courseId,
-      batchId,
+      placementBatchId,
       status,
       fromDate,
       toDate,
@@ -316,7 +320,7 @@ export class SessionsService {
     if (staffId) where.staffId = staffId;
     if (departmentId) where.departmentId = departmentId;
     if (courseId) where.courseId = courseId;
-    if (batchId) where.batchId = batchId;
+    if (placementBatchId) where.placementBatchId = placementBatchId;
     if (status) where.status = status;
 
     if (fromDate || toDate) {
@@ -343,7 +347,7 @@ export class SessionsService {
           staff: true,
           department: true,
           course: true,
-          batch: true,
+          placementBatch: true,
           _count: { select: { sessionStudents: true, attendances: true } },
         },
       }),
@@ -408,7 +412,7 @@ export class SessionsService {
           staff: true,
           department: true,
           course: true,
-          batch: true,
+          placementBatch: true,
           _count: { select: { sessionStudents: true, attendances: true } },
         },
       }),
@@ -440,11 +444,11 @@ export class SessionsService {
         staff: true,
         department: true,
         course: true,
-        batch: true,
+        placementBatch: true,
         sessionStudents: {
           include: {
             student: {
-              include: { department: true, course: true, batch: true },
+              include: { department: true, course: true, placementBatch: true },
             },
           },
         },
@@ -489,15 +493,11 @@ export class SessionsService {
       throw new BadRequestException('Session targeting and roster are frozen because attendance has been recorded');
     }
 
-    const targetDeptId = dto.departmentId || session.departmentId;
+    const targetDeptId = dto.departmentId !== undefined ? dto.departmentId : session.departmentId;
     const targetCourseId = dto.courseId !== undefined ? dto.courseId : session.courseId;
-    const targetBatchId = dto.batchId !== undefined ? dto.batchId : session.batchId;
+    const targetPbId = dto.placementBatchId !== undefined ? dto.placementBatchId : session.placementBatchId;
 
-    if (!targetDeptId) {
-      throw new BadRequestException('departmentId is required');
-    }
-
-    await this.validateAcademicScope(targetDeptId, targetCourseId || undefined, targetBatchId || undefined);
+    await this.validateTargetScope(targetDeptId || undefined, targetCourseId || undefined, targetPbId || undefined);
 
     let conductingStaffId = session.staffId;
     if (dto.staffId && (currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.SUPER_ADMIN)) {
@@ -537,7 +537,7 @@ export class SessionsService {
     const isSubjectChanged = dto.subjectId !== undefined && dto.subjectId !== session.subjectId;
     const isDeptChanged = dto.departmentId !== undefined && dto.departmentId !== session.departmentId;
     const isCourseChanged = dto.courseId !== undefined && dto.courseId !== session.courseId;
-    const isBatchChanged = dto.batchId !== undefined && dto.batchId !== session.batchId;
+    const isPbChanged = dto.placementBatchId !== undefined && dto.placementBatchId !== session.placementBatchId;
 
     const hasTriggerFieldChanged =
       isSessionDateChanged ||
@@ -548,12 +548,12 @@ export class SessionsService {
       isSubjectChanged ||
       isDeptChanged ||
       isCourseChanged ||
-      isBatchChanged;
+      isPbChanged;
 
     const isScopeChanged =
       targetDeptId !== session.departmentId ||
       targetCourseId !== session.courseId ||
-      targetBatchId !== session.batchId;
+      targetPbId !== session.placementBatchId;
 
     const updatedSession = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.classSession.update({
@@ -563,9 +563,9 @@ export class SessionsService {
           subjectId: targetSubjectId,
           venueId: targetVenueId,
           staffId: conductingStaffId,
-          departmentId: targetDeptId,
+          departmentId: targetDeptId || null,
           courseId: targetCourseId || null,
-          batchId: targetBatchId || null,
+          placementBatchId: targetPbId || null,
           sessionDate: sessionDateObj,
           startTime: start,
           endTime: end,
@@ -576,7 +576,7 @@ export class SessionsService {
           staff: true,
           department: true,
           course: true,
-          batch: true,
+          placementBatch: true,
         },
       });
 
@@ -585,12 +585,12 @@ export class SessionsService {
 
         const newTargetStudents = await tx.student.findMany({
           where: {
-            departmentId: targetDeptId,
-            ...(targetCourseId && { courseId: targetCourseId }),
-            ...(targetBatchId && { batchId: targetBatchId }),
             status: UserStatus.ACTIVE,
             isPlacementEligible: true,
             user: { status: UserStatus.ACTIVE },
+            ...(targetDeptId && { departmentId: targetDeptId }),
+            ...(targetCourseId && { courseId: targetCourseId }),
+            ...(targetPbId && { placementBatchId: targetPbId }),
           },
           select: { id: true },
         });
@@ -666,7 +666,7 @@ export class SessionsService {
         staff: true,
         department: true,
         course: true,
-        batch: true,
+        placementBatch: true,
       },
     });
 
@@ -679,8 +679,30 @@ export class SessionsService {
       ipAddress,
     });
 
-    // Post-Commit Notification Processing for Session Cancellation
-    if (status === SessionStatus.CANCELLED) {
+    // Post-Commit Notification Processing for Session Start & Cancellation
+    if (status === SessionStatus.IN_PROGRESS && session.status !== SessionStatus.IN_PROGRESS) {
+      const rosterEntries = await this.prisma.sessionStudent.findMany({
+        where: { sessionId: id, isEligible: true },
+        include: { student: { select: { userId: true } } },
+      });
+
+      const recipientUserIds = rosterEntries.map((r) => r.student.userId);
+      if (recipientUserIds.length > 0) {
+        const bodyText = session.description?.trim()
+          ? session.description.trim()
+          : `${session.title} has started.`;
+        await this.notificationsService.dispatchNotifications({
+          recipientUserIds,
+          title: 'Session Started',
+          body: bodyText,
+          payload: {
+            notificationType: NotificationType.SESSION_STARTED,
+            relatedEntityId: id,
+            sessionId: id,
+          },
+        });
+      }
+    } else if (status === SessionStatus.CANCELLED) {
       const rosterEntries = await this.prisma.sessionStudent.findMany({
         where: { sessionId: id, isEligible: true },
         include: { student: { select: { userId: true } } },

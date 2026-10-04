@@ -104,50 +104,47 @@ model Course {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  batches       Batch[]
   students      Student[]
   classSessions ClassSession[]
 
   @@map("courses")
 }
 
-model Batch {
-  id        String   @id @default(uuid())
-  name      String // e.g. "2023-2025"
-  startYear Int
-  endYear   Int
-  courseId  String
-  course    Course   @relation(fields: [courseId], references: [id], onDelete: Restrict)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model PlacementBatch {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  startYear   Int?
+  endYear     Int?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   students      Student[]
   classSessions ClassSession[]
 
-  @@unique([courseId, name])
-  @@map("batches")
+  @@map("placement_batches")
 }
 
 model Student {
-  id                  String     @id @default(uuid())
-  userId              String     @unique
-  user                User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  registerNumber      String     @unique
-  collegeEmail        String     @unique
-  departmentId        String
-  department          Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  courseId            String
-  course              Course     @relation(fields: [courseId], references: [id], onDelete: Restrict)
-  batchId             String
-  batch               Batch      @relation(fields: [batchId], references: [id], onDelete: Restrict)
+  id                  String          @id @default(uuid())
+  userId              String          @unique
+  user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  registerNumber      String          @unique
+  collegeEmail        String          @unique
+  departmentId        String?
+  department          Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  courseId            String?
+  course              Course?         @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  placementBatchId    String?
+  placementBatch      PlacementBatch? @relation(fields: [placementBatchId], references: [id], onDelete: SetNull)
   firstName           String
   lastName            String?
   phoneNumber         String? // Student editable
   avatarUrl           String? // Student editable
-  isPlacementEligible Boolean    @default(true)
-  status              UserStatus @default(ACTIVE)
-  createdAt           DateTime   @default(now())
-  updatedAt           DateTime   @updatedAt
+  isPlacementEligible Boolean         @default(true)
+  status              UserStatus      @default(ACTIVE)
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
 
   sessionStudents SessionStudent[]
   attendances     Attendance[]
@@ -208,26 +205,27 @@ model Subject {
 // ==========================================
 
 model ClassSession {
-  id           String        @id @default(uuid())
-  title        String
-  subjectId    String
-  subject      Subject       @relation(fields: [subjectId], references: [id], onDelete: Restrict)
-  venueId      String
-  venue        Venue         @relation(fields: [venueId], references: [id], onDelete: Restrict)
-  staffId      String
-  staff        Staff         @relation(fields: [staffId], references: [id], onDelete: Restrict)
-  departmentId String?
-  department   Department?   @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  courseId     String?
-  course       Course?       @relation(fields: [courseId], references: [id], onDelete: SetNull)
-  batchId      String?
-  batch        Batch?        @relation(fields: [batchId], references: [id], onDelete: SetNull)
-  sessionDate  DateTime      @db.Date
-  startTime    DateTime
-  endTime      DateTime
-  status       SessionStatus @default(SCHEDULED)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id               String          @id @default(uuid())
+  title            String
+  description      String?
+  subjectId        String?
+  subject          Subject?        @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  venueId          String
+  venue            Venue           @relation(fields: [venueId], references: [id], onDelete: Restrict)
+  staffId          String
+  staff            Staff           @relation(fields: [staffId], references: [id], onDelete: Restrict)
+  departmentId     String?
+  department       Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  courseId         String?
+  course           Course?         @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  placementBatchId String?
+  placementBatch   PlacementBatch? @relation(fields: [placementBatchId], references: [id], onDelete: SetNull)
+  sessionDate      DateTime        @db.Date
+  startTime        DateTime
+  endTime          DateTime
+  status           SessionStatus   @default(SCHEDULED)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 
   sessionStudents     SessionStudent[]
   attendances         Attendance[]

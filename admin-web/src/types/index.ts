@@ -22,6 +22,8 @@ export interface Department {
   updatedAt: string;
   _count?: {
     courses: number;
+    students: number;
+    classSessions: number;
   };
 }
 
@@ -34,21 +36,22 @@ export interface Course {
   createdAt: string;
   updatedAt: string;
   _count?: {
-    batches: number;
+    students: number;
+    classSessions: number;
   };
 }
 
-export interface Batch {
+export interface PlacementBatch {
   id: string;
   name: string;
-  startYear: number;
-  endYear: number;
-  courseId: string;
-  course?: Course;
+  startYear?: number | null;
+  endYear?: number | null;
+  description?: string | null;
   createdAt: string;
   updatedAt: string;
   _count?: {
     students: number;
+    classSessions: number;
   };
 }
 
@@ -100,18 +103,18 @@ export interface UpdateCourseInput {
   departmentId?: string;
 }
 
-export interface CreateBatchInput {
+export interface CreatePlacementBatchInput {
   name: string;
-  startYear: number;
-  endYear: number;
-  courseId: string;
+  startYear?: number;
+  endYear?: number;
+  description?: string;
 }
 
-export interface UpdateBatchInput {
+export interface UpdatePlacementBatchInput {
   name?: string;
   startYear?: number;
   endYear?: number;
-  courseId?: string;
+  description?: string;
 }
 
 export interface CreateSubjectInput {
@@ -208,12 +211,12 @@ export interface Student {
   lastName?: string | null;
   phoneNumber?: string | null;
   avatarUrl?: string | null;
-  departmentId: string;
-  department?: Department;
-  courseId: string;
-  course?: Course;
-  batchId: string;
-  batch?: Batch;
+  departmentId?: string | null;
+  department?: Department | null;
+  courseId?: string | null;
+  course?: Course | null;
+  placementBatchId?: string | null;
+  placementBatch?: PlacementBatch | null;
   isPlacementEligible: boolean;
   status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
   user: User;
@@ -221,10 +224,22 @@ export interface Student {
   updatedAt: string;
 }
 
+export interface CreateStudentInput {
+  registerNumber: string;
+  firstName: string;
+  collegeEmail: string;
+  lastName?: string;
+  phoneNumber?: string;
+  departmentId?: string;
+  courseId?: string;
+  placementBatchId?: string;
+  isPlacementEligible?: boolean;
+}
+
 export interface GetStudentsFilterParams {
   departmentId?: string;
   courseId?: string;
-  batchId?: string;
+  placementBatchId?: string;
   status?: string;
   isPlacementEligible?: boolean;
   search?: string;
@@ -248,7 +263,7 @@ export interface UpdateStudentInput {
   phoneNumber?: string;
   departmentId?: string;
   courseId?: string;
-  batchId?: string;
+  placementBatchId?: string | null;
   isPlacementEligible?: boolean;
 }
 
@@ -261,9 +276,9 @@ export interface StudentImportRow {
   collegeEmail: string;
   firstName: string;
   lastName?: string;
-  departmentCode: string;
-  courseCode: string;
-  batchName: string;
+  departmentCode?: string;
+  courseCode?: string;
+  placementBatchName?: string;
   phoneNumber?: string;
 }
 
@@ -278,9 +293,9 @@ export interface ParsedStudentRow {
   collegeEmail: string;
   firstName: string;
   lastName?: string;
-  departmentCode: string;
-  courseCode: string;
-  batchName: string;
+  departmentCode?: string;
+  courseCode?: string;
+  placementBatchName?: string;
   phoneNumber?: string;
 }
 

@@ -4,8 +4,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { departmentsService } from '@/services/departments.service';
 import { coursesService } from '@/services/courses.service';
-import { batchesService } from '@/services/batches.service';
-import { subjectsService } from '@/services/subjects.service';
+import { placementBatchesService } from '@/services/placement-batches.service';
 import { venuesService } from '@/services/venues.service';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatCardSkeleton } from '@/components/shared/loading-skeleton';
@@ -14,7 +13,6 @@ import {
   Building2,
   GraduationCap,
   Users,
-  BookOpen,
   MapPin,
   ArrowRight,
   Sparkles,
@@ -35,14 +33,9 @@ export default function DashboardPage() {
     queryFn: () => coursesService.getAll(),
   });
 
-  const { data: batches, isLoading: loadingBatches } = useQuery({
-    queryKey: ['batches'],
-    queryFn: () => batchesService.getAll(),
-  });
-
-  const { data: subjects, isLoading: loadingSubjects } = useQuery({
-    queryKey: ['subjects'],
-    queryFn: () => subjectsService.getAll(),
+  const { data: placementBatches, isLoading: loadingBatches } = useQuery({
+    queryKey: ['placement-batches'],
+    queryFn: () => placementBatchesService.getAll(),
   });
 
   const { data: venues, isLoading: loadingVenues } = useQuery({
@@ -50,13 +43,12 @@ export default function DashboardPage() {
     queryFn: () => venuesService.getAll(),
   });
 
-  const isLoadingAny = loadingDepts || loadingCourses || loadingBatches || loadingSubjects || loadingVenues;
+  const isLoadingAny = loadingDepts || loadingCourses || loadingBatches || loadingVenues;
 
   const quickLinks = [
+    { name: 'Placement Batches', href: '/placement-batches', icon: Users, desc: 'Manage independent placement groups & training cohorts' },
     { name: 'Departments', href: '/departments', icon: Building2, desc: 'Manage university departments & academic codes' },
     { name: 'Courses', href: '/courses', icon: GraduationCap, desc: 'Configure degree programs & department mappings' },
-    { name: 'Batches', href: '/batches', icon: Users, desc: 'Manage academic year cohorts & start/end years' },
-    { name: 'Subjects', href: '/subjects', icon: BookOpen, desc: 'Maintain placement modules & training subjects' },
     { name: 'Venues', href: '/venues', icon: MapPin, desc: 'Manage placement halls, labs, & seating capacity' },
   ];
 
@@ -69,13 +61,13 @@ export default function DashboardPage() {
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-emerald-200 text-xs font-semibold mb-3">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Phase 7.4 — University Foundation</span>
+              <span>University Placement System</span>
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
               Welcome back, {user?.email.split('@')[0]}
             </h1>
             <p className="mt-1.5 text-sm text-emerald-100 max-w-xl">
-              Administrator Portal for Karpagam Academy of Higher Education Placement Attendance Management System.
+              Administrator Portal for Placement Attendance Management System.
             </p>
           </div>
         </div>
@@ -84,7 +76,7 @@ export default function DashboardPage() {
       {/* Reference Data Stat Cards */}
       <div>
         <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-4">
-          System Reference Data Overview
+          System Overview & Reference Data
         </h2>
 
         {isLoadingAny ? (
@@ -96,11 +88,18 @@ export default function DashboardPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <StatCard
+              title="Placement Batches"
+              value={placementBatches?.length ?? 0}
+              icon={Users}
+              color="amber"
+              description="Placement cohorts"
+            />
+            <StatCard
               title="Departments"
               value={departments?.length ?? 0}
               icon={Building2}
               color="emerald"
-              description="Active departments"
+              description="Academic departments"
             />
             <StatCard
               title="Courses"
@@ -108,20 +107,6 @@ export default function DashboardPage() {
               icon={GraduationCap}
               color="indigo"
               description="Degree programs"
-            />
-            <StatCard
-              title="Batches"
-              value={batches?.length ?? 0}
-              icon={Users}
-              color="amber"
-              description="Academic cohorts"
-            />
-            <StatCard
-              title="Subjects"
-              value={subjects?.length ?? 0}
-              icon={BookOpen}
-              color="sky"
-              description="Training modules"
             />
             <StatCard
               title="Venues"

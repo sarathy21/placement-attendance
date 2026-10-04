@@ -13,6 +13,7 @@ import '../../features/sessions/presentation/staff_home_screen.dart';
 import '../../features/sessions/presentation/staff_qr_scanner_screen.dart';
 import '../../features/sessions/presentation/student_home_screen.dart';
 import '../../features/sessions/data/models/session_model.dart';
+import '../../features/placement_batches/presentation/staff_placement_batches_screen.dart';
 import 'route_names.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -98,6 +99,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final sessionId = state.pathParameters['id'] ?? '';
           return StaffAttendanceRosterScreen(sessionId: sessionId);
         },
+      ),
+      GoRoute(
+        path: RouteNames.staffPlacementBatches,
+        builder: (context, state) => const StaffPlacementBatchesScreen(),
       ),
     ],
   );

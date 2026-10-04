@@ -15,6 +15,7 @@ import { DevicesModule } from './devices/devices.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PlacementDrivesModule } from './placement-drives/placement-drives.module';
 import { StaffModule } from './staff/staff.module';
+import { PlacementBatchesModule } from './placement-batches/placement-batches.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { StaffModule } from './staff/staff.module';
     StudentsModule,
     StaffModule,
     AcademicModule,
+    PlacementBatchesModule,
     VenuesModule,
     SubjectsModule,
     SessionsModule,

@@ -29,10 +29,10 @@ export class GetSessionsFilterDto {
   @IsUUID()
   courseId?: string;
 
-  @ApiPropertyOptional({ description: 'Filter by Batch UUID' })
+  @ApiPropertyOptional({ description: 'Filter by Placement Batch UUID' })
   @IsOptional()
   @IsUUID()
-  batchId?: string;
+  placementBatchId?: string;
 
   @ApiPropertyOptional({ enum: SessionStatus, description: 'Filter by Session status' })
   @IsOptional()

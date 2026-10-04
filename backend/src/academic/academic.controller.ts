@@ -5,8 +5,6 @@ import { CreateDepartmentDto } from './dto/create-department.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
-import { CreateBatchDto } from './dto/create-batch.dto';
-import { UpdateBatchDto } from './dto/update-batch.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserRole } from '@prisma/client';
@@ -101,48 +99,5 @@ export class AcademicController {
   ) {
     const ipAddress = req.ip || req.socket?.remoteAddress;
     return this.academicService.updateCourse(id, dto, userId, ipAddress);
-  }
-
-  // ==========================================
-  // BATCHES
-  // ==========================================
-
-  @Get('batches')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.STAFF, UserRole.STUDENT)
-  @ApiOperation({ summary: 'List batches (optionally filter by courseId)' })
-  async findAllBatches(@Query('courseId') courseId?: string) {
-    return this.academicService.findAllBatches(courseId);
-  }
-
-  @Get('batches/:id')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.STAFF, UserRole.STUDENT)
-  @ApiOperation({ summary: 'Get batch by ID' })
-  async findOneBatch(@Param('id') id: string) {
-    return this.academicService.findOneBatch(id);
-  }
-
-  @Post('batches')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Create new batch' })
-  async createBatch(
-    @Body() dto: CreateBatchDto,
-    @CurrentUser('id') userId: string,
-    @Req() req: any,
-  ) {
-    const ipAddress = req.ip || req.socket?.remoteAddress;
-    return this.academicService.createBatch(dto, userId, ipAddress);
-  }
-
-  @Patch('batches/:id')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
-  @ApiOperation({ summary: 'Update batch' })
-  async updateBatch(
-    @Param('id') id: string,
-    @Body() dto: UpdateBatchDto,
-    @CurrentUser('id') userId: string,
-    @Req() req: any,
-  ) {
-    const ipAddress = req.ip || req.socket?.remoteAddress;
-    return this.academicService.updateBatch(id, dto, userId, ipAddress);
   }
 }
