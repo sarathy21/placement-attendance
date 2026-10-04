@@ -13,6 +13,7 @@ import {
   MapPin,
   ShieldCheck,
   UserCheck,
+  Briefcase,
 } from 'lucide-react';
 
 const navItems = [
@@ -24,6 +25,7 @@ const navItems = [
   { name: 'Venues', href: '/venues', icon: MapPin },
   { name: 'Staff Members', href: '/staff', icon: UserCheck },
   { name: 'Students', href: '/students', icon: GraduationCap },
+  { name: 'Placement Drives', href: '/placement-drives', icon: Briefcase },
 ];
 
 export function Sidebar() {

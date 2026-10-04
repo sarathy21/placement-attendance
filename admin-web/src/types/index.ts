@@ -299,3 +299,105 @@ export interface ImportPreviewResponse {
   canImport: boolean;
   rows: StudentRowPreview[];
 }
+
+// Placement Drive & Recruitment Calendar Types
+export type PlacementDriveStatus = 'UPCOMING' | 'ONGOING' | 'COMPLETED' | 'CANCELLED';
+
+export interface DriveRound {
+  id: string;
+  driveId: string;
+  roundName: string;
+  roundOrder: number;
+  date?: string | null;
+  venue?: string | null;
+  description?: string | null;
+  sessionId?: string | null;
+  session?: {
+    id: string;
+    sessionCode: string;
+    topic: string;
+    scheduledDate: string;
+    status: string;
+  } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PlacementDrive {
+  id: string;
+  companyName: string;
+  driveDate: string;
+  venue: string;
+  description?: string | null;
+  status: PlacementDriveStatus;
+  attendanceEnabled: boolean;
+  createdById: string;
+  createdBy?: {
+    id: string;
+    firstName: string;
+    lastName?: string | null;
+    staffId: string;
+  } | null;
+  rounds: DriveRound[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GetPlacementDrivesFilterParams {
+  status?: PlacementDriveStatus;
+  companyName?: string;
+  fromDate?: string;
+  toDate?: string;
+  attendanceEnabled?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+export interface PlacementDriveListResponse {
+  data: PlacementDrive[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export interface CreateDriveRoundInput {
+  roundName: string;
+  roundOrder: number;
+  date?: string;
+  venue?: string;
+  description?: string;
+  sessionId?: string;
+}
+
+export interface UpdateDriveRoundInput {
+  roundName?: string;
+  roundOrder?: number;
+  date?: string;
+  venue?: string;
+  description?: string;
+  sessionId?: string;
+}
+
+export interface CreatePlacementDriveInput {
+  companyName: string;
+  driveDate: string;
+  venue: string;
+  description?: string;
+  attendanceEnabled?: boolean;
+  rounds?: CreateDriveRoundInput[];
+}
+
+export interface UpdatePlacementDriveInput {
+  companyName?: string;
+  driveDate?: string;
+  venue?: string;
+  description?: string;
+  attendanceEnabled?: boolean;
+}
+
+export interface UpdatePlacementDriveStatusInput {
+  status: PlacementDriveStatus;
+}
