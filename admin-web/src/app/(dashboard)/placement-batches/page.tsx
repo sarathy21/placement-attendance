@@ -34,7 +34,7 @@ export default function PlacementBatchesPage() {
       showToast('success', 'Placement Batch Deleted', data.message || 'Placement batch deleted successfully.');
       setDeletingBatchId(null);
     },
-    onError: (err: any) => {
+    onError: (err: Error & { response?: { data?: { message?: string | string[] } } }) => {
       const msg = err.response?.data?.message || err.message || 'Failed to delete placement batch';
       showToast('error', 'Cannot Delete Placement Batch', Array.isArray(msg) ? msg.join(', ') : msg);
       setDeletingBatchId(null);

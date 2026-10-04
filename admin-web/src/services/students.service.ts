@@ -3,6 +3,7 @@ import {
   Student,
   StudentListResponse,
   GetStudentsFilterParams,
+  CreateStudentInput,
   UpdateStudentInput,
   UpdateStudentStatusInput,
   StudentImportRow,
@@ -12,6 +13,11 @@ import {
 export const studentsService = {
   async getAll(params?: GetStudentsFilterParams): Promise<StudentListResponse> {
     const res = await apiClient.get<StudentListResponse>('/students', { params });
+    return res.data;
+  },
+
+  async create(data: CreateStudentInput): Promise<Student> {
+    const res = await apiClient.post<Student>('/students', data);
     return res.data;
   },
 

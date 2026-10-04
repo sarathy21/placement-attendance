@@ -41,7 +41,7 @@ export function PlacementBatchModal({
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<PlacementBatchFormInput, any, PlacementBatchFormData>({
+  } = useForm<PlacementBatchFormInput, unknown, PlacementBatchFormData>({
     resolver: zodResolver(placementBatchSchema),
     defaultValues: {
       name: '',
@@ -85,7 +85,7 @@ export function PlacementBatchModal({
       );
       onClose();
     },
-    onError: (err: any) => {
+    onError: (err: Error & { response?: { data?: { message?: string | string[] } } }) => {
       const msg = err.response?.data?.message || err.message || 'Failed to save placement batch';
       showToast('error', 'Operation Failed', Array.isArray(msg) ? msg.join(', ') : msg);
     },

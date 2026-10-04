@@ -34,6 +34,7 @@ import {
   CheckCircle2,
   XCircle,
   ShieldAlert,
+  Plus,
 } from 'lucide-react';
 
 export default function StudentsPage() {
@@ -51,6 +52,7 @@ export default function StudentsPage() {
   const [eligibilityFilter, setEligibilityFilter] = useState<string>(''); // '', 'true', 'false'
 
   // Modals state
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedStudentForEdit, setSelectedStudentForEdit] = useState<Student | null>(null);
 
@@ -243,7 +245,12 @@ export default function StudentsPage() {
             <span>Refresh</span>
           </Button>
 
-          <Button onClick={() => setIsImportModalOpen(true)} className="gap-2">
+          <Button onClick={() => setIsCreateModalOpen(true)} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
+            <Plus className="w-4 h-4" />
+            <span>Add Student</span>
+          </Button>
+
+          <Button onClick={() => setIsImportModalOpen(true)} variant="outline" className="gap-2">
             <Upload className="w-4 h-4" />
             <span>Import Students (.xlsx)</span>
           </Button>
@@ -549,6 +556,13 @@ export default function StudentsPage() {
           </div>
         </Card>
       )}
+
+      {/* Create Student Modal */}
+      <StudentModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        student={null}
+      />
 
       {/* Edit Student Modal */}
       <StudentModal
