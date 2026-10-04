@@ -14,10 +14,10 @@ export class GetStudentsFilterDto {
   @IsUUID()
   courseId?: string;
 
-  @ApiPropertyOptional({ description: 'Filter by Batch UUID' })
+  @ApiPropertyOptional({ description: 'Filter by Placement Batch UUID' })
   @IsOptional()
   @IsUUID()
-  batchId?: string;
+  placementBatchId?: string;
 
   @ApiPropertyOptional({ enum: UserStatus, description: 'Filter by Student status' })
   @IsOptional()

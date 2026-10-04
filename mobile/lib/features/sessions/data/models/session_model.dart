@@ -76,7 +76,7 @@ class SessionModel {
   final SessionStaffModel? staff;
   final Map<String, dynamic>? department;
   final Map<String, dynamic>? course;
-  final Map<String, dynamic>? batch;
+  final Map<String, dynamic>? placementBatch;
 
   const SessionModel({
     required this.id,
@@ -90,7 +90,7 @@ class SessionModel {
     this.staff,
     this.department,
     this.course,
-    this.batch,
+    this.placementBatch,
   });
 
   factory SessionModel.fromJson(Map<String, dynamic> json) {
@@ -118,7 +118,9 @@ class SessionModel {
           : null,
       department: json['department'] is Map<String, dynamic> ? json['department'] : null,
       course: json['course'] is Map<String, dynamic> ? json['course'] : null,
-      batch: json['batch'] is Map<String, dynamic> ? json['batch'] : null,
+      placementBatch: json['placementBatch'] is Map<String, dynamic>
+          ? json['placementBatch']
+          : (json['batch'] is Map<String, dynamic> ? json['batch'] : null),
     );
   }
 

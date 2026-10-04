@@ -71,8 +71,8 @@ describe('Phase 4: Academic Management & Session Scheduling (e2e)', () => {
     const course = await prisma.course.findUnique({ where: { code: 'MCA-FT' } });
     if (course) courseId = course.id;
 
-    const batch = await prisma.batch.findFirst({ where: { courseId } });
-    if (batch) batchId = batch.id;
+    const pb = await prisma.placementBatch.findFirst();
+    if (pb) batchId = pb.id;
 
     // 3. Create test Venue and Subject for session testing
     const venue = await prisma.venue.upsert({
@@ -127,15 +127,14 @@ describe('Phase 4: Academic Management & Session Scheduling (e2e)', () => {
         .expect(403);
     });
 
-    it('POST /batches should validate startYear < endYear constraint', async () => {
+    it('POST /placement-batches should validate startYear <= endYear constraint', async () => {
       await request(app.getHttpServer())
-        .post('/batches')
+        .post('/placement-batches')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           name: 'Invalid-Batch',
           startYear: 2025,
           endYear: 2023, // Invalid: startYear > endYear
-          courseId,
         })
         .expect(400);
     });
@@ -222,7 +221,6 @@ describe('Phase 4: Academic Management & Session Scheduling (e2e)', () => {
           venueId,
           departmentId,
           courseId,
-          batchId,
           sessionDate: '2026-10-15',
           startTime: '2026-10-15T09:00:00+05:30',
           endTime: '2026-10-15T11:00:00+05:30',
@@ -362,17 +360,208 @@ describe('Phase 4: Academic Management & Session Scheduling (e2e)', () => {
     });
   });
 
+  describe('Session Targeting Matrix (8 combinations)', () => {
+    let matrixDeptId: string;
+    let matrixCourseId: string;
+    let matrixPbId: string;
+
+    beforeAll(async () => {
+      const d = await prisma.department.findFirst();
+      const c = await prisma.course.findFirst({ where: { departmentId: d?.id } });
+      const pb = await prisma.placementBatch.findFirst();
+
+      matrixDeptId = d!.id;
+      matrixCourseId = c!.id;
+      if (pb) {
+        matrixPbId = pb.id;
+      } else {
+        const newPb = await prisma.placementBatch.create({ data: { name: 'MatrixTestPB' } });
+        matrixPbId = newPb.id;
+      }
+    });
+
+    it('1. Targeting: placementBatch only', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/sessions')
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send({
+          title: 'Matrix 1 PB Only',
+          subjectId,
+          venueId,
+          placementBatchId: matrixPbId,
+          sessionDate: '2026-11-01',
+          startTime: '2026-11-01T08:00:00+05:30',
+          endTime: '2026-11-01T09:00:00+05:30',
+        })
+        .expect(201);
+
+      expect(res.body.placementBatchId).toBe(matrixPbId);
+      expect(res.body.departmentId).toBeNull();
+      expect(res.body.courseId).toBeNull();
+      expect(res.body.rosterCount).toBeGreaterThanOrEqual(1);
+    });
+
+    it('2. Targeting: department only', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/sessions')
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send({
+          title: 'Matrix 2 Dept Only',
+          subjectId,
+          venueId,
+          departmentId: matrixDeptId,
+          sessionDate: '2026-11-01',
+          startTime: '2026-11-01T09:15:00+05:30',
+          endTime: '2026-11-01T10:15:00+05:30',
+        })
+        .expect(201);
+
+      expect(res.body.departmentId).toBe(matrixDeptId);
+      expect(res.body.courseId).toBeNull();
+      expect(res.body.placementBatchId).toBeNull();
+    });
+
+    it('3. Targeting: course only', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/sessions')
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send({
+          title: 'Matrix 3 Course Only',
+          subjectId,
+          venueId,
+          courseId: matrixCourseId,
+          sessionDate: '2026-11-01',
+          startTime: '2026-11-01T10:30:00+05:30',
+          endTime: '2026-11-01T11:30:00+05:30',
+        })
+        .expect(201);
+
+      expect(res.body.courseId).toBe(matrixCourseId);
+      expect(res.body.departmentId).toBeNull();
+      expect(res.body.placementBatchId).toBeNull();
+    });
+
+    it('4. Targeting: department + course', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/sessions')
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send({
+          title: 'Matrix 4 Dept + Course',
+          subjectId,
+          venueId,
+          departmentId: matrixDeptId,
+          courseId: matrixCourseId,
+          sessionDate: '2026-11-01',
+          startTime: '2026-11-01T11:45:00+05:30',
+          endTime: '2026-11-01T12:45:00+05:30',
+        })
+        .expect(201);
+
+      expect(res.body.departmentId).toBe(matrixDeptId);
+      expect(res.body.courseId).toBe(matrixCourseId);
+    });
+
+    it('5. Targeting: placementBatch + department', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/sessions')
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send({
+          title: 'Matrix 5 PB + Dept',
+          subjectId,
+          venueId,
+          placementBatchId: matrixPbId,
+          departmentId: matrixDeptId,
+          sessionDate: '2026-11-01',
+          startTime: '2026-11-01T13:00:00+05:30',
+          endTime: '2026-11-01T14:00:00+05:30',
+        })
+        .expect(201);
+
+      expect(res.body.placementBatchId).toBe(matrixPbId);
+      expect(res.body.departmentId).toBe(matrixDeptId);
+    });
+
+    it('6. Targeting: placementBatch + course', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/sessions')
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send({
+          title: 'Matrix 6 PB + Course',
+          subjectId,
+          venueId,
+          placementBatchId: matrixPbId,
+          courseId: matrixCourseId,
+          sessionDate: '2026-11-01',
+          startTime: '2026-11-01T14:15:00+05:30',
+          endTime: '2026-11-01T15:15:00+05:30',
+        })
+        .expect(201);
+
+      expect(res.body.placementBatchId).toBe(matrixPbId);
+      expect(res.body.courseId).toBe(matrixCourseId);
+    });
+
+    it('7. Targeting: placementBatch + department + course', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/sessions')
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send({
+          title: 'Matrix 7 PB + Dept + Course',
+          subjectId,
+          venueId,
+          placementBatchId: matrixPbId,
+          departmentId: matrixDeptId,
+          courseId: matrixCourseId,
+          sessionDate: '2026-11-01',
+          startTime: '2026-11-01T15:30:00+05:30',
+          endTime: '2026-11-01T16:30:00+05:30',
+        })
+        .expect(201);
+
+      expect(res.body.placementBatchId).toBe(matrixPbId);
+      expect(res.body.departmentId).toBe(matrixDeptId);
+      expect(res.body.courseId).toBe(matrixCourseId);
+    });
+
+    it('8. Targeting: NO targeting fields (institution-wide ALL active placement-eligible students)', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/sessions')
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send({
+          title: 'Matrix 8 Institution Wide All Eligible',
+          subjectId,
+          venueId,
+          sessionDate: '2026-11-01',
+          startTime: '2026-11-01T16:45:00+05:30',
+          endTime: '2026-11-01T17:45:00+05:30',
+        })
+        .expect(201);
+
+      expect(res.body.departmentId).toBeNull();
+      expect(res.body.courseId).toBeNull();
+      expect(res.body.placementBatchId).toBeNull();
+
+      // Total active placement-eligible students in DB
+      const expectedTotalEligible = await prisma.student.count({
+        where: {
+          status: 'ACTIVE',
+          isPlacementEligible: true,
+          user: { status: 'ACTIVE' },
+        },
+      });
+
+      expect(res.body.rosterCount).toBe(expectedTotalEligible);
+    });
+  });
+
   afterAll(async () => {
     // Cleanup created test sessions and reference records
     const testSessions = await prisma.classSession.findMany({
       where: {
         OR: [
-          { title: { contains: 'Lifecycle' } },
-          { title: { contains: 'Morning' } },
-          { title: { contains: 'Conflicting' } },
-          { title: { contains: 'Cancelled' } },
-          { title: { contains: 'Too Short' } },
-          { title: { contains: 'Mismatched' } },
+          { subjectId },
+          { venueId },
+          { title: { contains: 'Matrix' } },
         ],
       },
       select: { id: true },

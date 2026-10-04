@@ -274,7 +274,7 @@ export class AttendanceService {
         staff: true,
         department: true,
         course: true,
-        batch: true,
+        placementBatch: true,
       },
     });
 

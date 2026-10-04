@@ -18,6 +18,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes, ApiBody
 import { StudentsService } from './students.service';
 import { ExcelImportService } from './excel-import.service';
 import { GetStudentsFilterDto } from './dto/get-students-filter.dto';
+import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { UpdateStudentStatusDto } from './dto/update-student-status.dto';
 import { ConfirmImportDto } from './dto/confirm-import.dto';
@@ -48,6 +49,20 @@ export class StudentsController {
   @ApiResponse({ status: 404, description: 'Student not found' })
   async findOne(@Param('id') id: string) {
     return this.studentsService.findOne(id);
+  }
+
+  @Post()
+  @ApiOperation({ summary: 'Create a single placement student' })
+  @ApiResponse({ status: 201, description: 'Student created successfully' })
+  @ApiResponse({ status: 400, description: 'Validation error or academic mismatch' })
+  @ApiResponse({ status: 409, description: 'Register number or email already exists' })
+  async create(
+    @Body() dto: CreateStudentDto,
+    @CurrentUser('id') userId: string,
+    @Req() req: any,
+  ) {
+    const ipAddress = req.ip || req.socket?.remoteAddress;
+    return this.studentsService.create(dto, userId, ipAddress);
   }
 
   @Patch(':id')

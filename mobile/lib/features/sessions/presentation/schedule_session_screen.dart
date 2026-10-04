@@ -87,10 +87,6 @@ class _ScheduleSessionScreenState extends ConsumerState<ScheduleSessionScreen> {
       _showErrorSnackBar('Please select a venue');
       return;
     }
-    if (_selectedDepartmentId == null) {
-      _showErrorSnackBar('Please select a target department');
-      return;
-    }
 
     if (!_isEndTimeValid()) {
       _showErrorSnackBar('End time must be after start time');

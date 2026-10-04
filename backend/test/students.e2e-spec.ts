@@ -75,14 +75,14 @@ describe('StudentsModule (e2e)', () => {
     // 2. Fetch seed reference IDs
     const student = await prisma.student.findUnique({
       where: { registerNumber: '25cap109' },
-      include: { department: true, course: true, batch: true },
+      include: { department: true, course: true, placementBatch: true },
     });
 
     if (student) {
       existingStudentId = student.id;
-      departmentId = student.departmentId;
-      courseId = student.courseId;
-      batchId = student.batchId;
+      departmentId = student.departmentId ?? '';
+      courseId = student.courseId ?? '';
+      batchId = student.placementBatchId ?? '';
     }
   });
 
@@ -208,8 +208,8 @@ describe('StudentsModule (e2e)', () => {
 
     it('should correctly report valid student row preview', async () => {
       const buffer = await createExcelBuffer(
-        ['registerNumber', 'collegeEmail', 'firstName', 'lastName', 'departmentCode', 'courseCode', 'batchName', 'phoneNumber'],
-        [['25cap301', '25cap301@kahedu.edu.in', 'Anand', 'K', 'MCA', 'MCA-FT', '2023-2025', '+919876543210']],
+        ['Register No', 'Email', 'Name', 'Phone', 'Department', 'Course'],
+        [['25cap301', '25cap301@kahedu.edu.in', 'Anand K', '+919876543210', 'MCA', 'MCA-FT']],
       );
 
       const res = await request(app.getHttpServer())
@@ -237,7 +237,6 @@ describe('StudentsModule (e2e)', () => {
           lastName: 'K',
           departmentCode: 'MCA',
           courseCode: 'MCA-FT',
-          batchName: '2023-2025',
           phoneNumber: '+919876543210',
         },
       });
@@ -245,11 +244,11 @@ describe('StudentsModule (e2e)', () => {
 
     it('should detect invalid row fields (missing fields, bad email, phone, unknown relations, relationship mismatches)', async () => {
       const buffer = await createExcelBuffer(
-        ['registerNumber', 'collegeEmail', 'firstName', 'lastName', 'departmentCode', 'courseCode', 'batchName', 'phoneNumber'],
+        ['Register No', 'Email', 'Name', 'Phone', 'Department', 'Course', 'Placement Batch'],
         [
-          ['', 'invalid-email-format', '', 'Test', 'UNKNOWN_DEPT', 'MCA-FT', '2023-2025', 'invalid-phone-string'], // Row 2: invalid email/phone/missing reg/firstName/dept
-          ['25cap901', '25cap901@kahedu.edu.in', 'Mismatch1', 'T', 'MCA', 'BTECH-CSE', '2024-2028', '9876543210'], // Row 3: Dept MCA but Course BTECH-CSE mismatch
-          ['25cap902', '25cap902@kahedu.edu.in', 'Mismatch2', 'T', 'MCA', 'MCA-FT', '2024-2028', '9876543210'],    // Row 4: Course MCA-FT but Batch 2024-2028 mismatch
+          ['', 'invalid-email-format', '', 'invalid-phone-string', 'UNKNOWN_DEPT', 'MCA-FT', ''], // Row 2: invalid email/phone/missing reg/firstName/dept
+          ['25cap901', '25cap901@kahedu.edu.in', 'Mismatch1 T', '9876543210', 'MCA', 'BTECH-CSE', ''], // Row 3: Dept MCA but Course BTECH-CSE mismatch
+          ['25cap902', '25cap902@kahedu.edu.in', 'Mismatch2 T', '9876543210', 'MCA', 'MCA-FT', 'NON_EXISTENT_PB'],    // Row 4: Unknown Placement Batch
         ],
       );
 
@@ -268,18 +267,18 @@ describe('StudentsModule (e2e)', () => {
         expect.arrayContaining([
           'Register Number is required',
           "Invalid college email format: 'invalid-email-format'",
-          'First Name is required',
-          "Department code 'UNKNOWN_DEPT' does not exist in database",
+          'Name is required',
+          "Unknown department 'UNKNOWN_DEPT'",
         ]),
       );
 
       // Row 3 validation check (Dept-Course mismatch)
       expect(res.body.rows[1].status).toBe('INVALID');
-      expect(res.body.rows[1].errors).toContain("Course 'BTECH-CSE' does not belong to Department 'MCA'");
+      expect(res.body.rows[1].errors).toContain("Inconsistent department/course: Course 'BTECH-CSE' does not belong to Department 'MCA'");
 
-      // Row 4 validation check (Course-Batch mismatch)
+      // Row 4 validation check (Unknown Placement Batch)
       expect(res.body.rows[2].status).toBe('INVALID');
-      expect(res.body.rows[2].errors).toContain("Batch '2024-2028' does not exist for Course 'MCA-FT'");
+      expect(res.body.rows[2].errors).toContain("Unknown placement batch 'NON_EXISTENT_PB'");
     });
 
     it('should detect duplicate register number and email within Excel file', async () => {
@@ -349,7 +348,6 @@ describe('StudentsModule (e2e)', () => {
             lastName: 'M',
             departmentCode: 'MCA',
             courseCode: 'MCA-FT',
-            batchName: '2023-2025',
             phoneNumber: '+919123456789',
           },
           {
@@ -359,7 +357,6 @@ describe('StudentsModule (e2e)', () => {
             lastName: 'R',
             departmentCode: 'MCA',
             courseCode: 'MCA-FT',
-            batchName: '2023-2025',
           },
         ],
       };
@@ -478,7 +475,7 @@ describe('StudentsModule (e2e)', () => {
       expect(res.body.id).toBe(existingStudentId);
       expect(res.body.department).toHaveProperty('code');
       expect(res.body.course).toHaveProperty('code');
-      expect(res.body.batch).toHaveProperty('name');
+      expect(res.body.placementBatch).toHaveProperty('name');
       expect(res.body.user).toBeDefined();
       expect(res.body.user).not.toHaveProperty('passwordHash');
     });
@@ -540,6 +537,187 @@ describe('StudentsModule (e2e)', () => {
     });
   });
 
+  describe('POST /students (Field Combinations A..H & Removal)', () => {
+    let testDeptId: string;
+    let testCrsId: string;
+    let testPbId: string;
+
+    beforeAll(async () => {
+      const d = await prisma.department.findFirst();
+      const c = await prisma.course.findFirst({ where: { departmentId: d?.id } });
+      const pb = await prisma.placementBatch.findFirst();
+      testDeptId = d!.id;
+      testCrsId = c!.id;
+      if (pb) {
+        testPbId = pb.id;
+      } else {
+        const newPb = await prisma.placementBatch.create({ data: { name: 'ComboTestPB' } });
+        testPbId = newPb.id;
+      }
+    });
+
+    it('Combination A: required fields only (201 Created)', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/students')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          registerNumber: 'COMBO_A_001',
+          collegeEmail: 'combo_a@kahedu.edu.in',
+          firstName: 'ComboA',
+        })
+        .expect(201);
+
+      expect(res.body.departmentId).toBeNull();
+      expect(res.body.courseId).toBeNull();
+      expect(res.body.placementBatchId).toBeNull();
+    });
+
+    it('Combination B: department only (201 Created)', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/students')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          registerNumber: 'COMBO_B_001',
+          collegeEmail: 'combo_b@kahedu.edu.in',
+          firstName: 'ComboB',
+          departmentId: testDeptId,
+        })
+        .expect(201);
+
+      expect(res.body.departmentId).toBe(testDeptId);
+      expect(res.body.courseId).toBeNull();
+    });
+
+    it('Combination C: course only (201 Created)', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/students')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          registerNumber: 'COMBO_C_001',
+          collegeEmail: 'combo_c@kahedu.edu.in',
+          firstName: 'ComboC',
+          courseId: testCrsId,
+        })
+        .expect(201);
+
+      expect(res.body.courseId).toBe(testCrsId);
+    });
+
+    it('Combination D: placementBatch only (201 Created - independent)', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/students')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          registerNumber: 'COMBO_D_001',
+          collegeEmail: 'combo_d@kahedu.edu.in',
+          firstName: 'ComboD',
+          placementBatchId: testPbId,
+        })
+        .expect(201);
+
+      expect(res.body.placementBatchId).toBe(testPbId);
+      expect(res.body.departmentId).toBeNull();
+      expect(res.body.courseId).toBeNull();
+    });
+
+    it('Combination E: department + course consistent (201 Created)', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/students')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          registerNumber: 'COMBO_E_001',
+          collegeEmail: 'combo_e@kahedu.edu.in',
+          firstName: 'ComboE',
+          departmentId: testDeptId,
+          courseId: testCrsId,
+        })
+        .expect(201);
+
+      expect(res.body.departmentId).toBe(testDeptId);
+      expect(res.body.courseId).toBe(testCrsId);
+    });
+
+    it('Combination F: department + placementBatch (201 Created)', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/students')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          registerNumber: 'COMBO_F_001',
+          collegeEmail: 'combo_f@kahedu.edu.in',
+          firstName: 'ComboF',
+          departmentId: testDeptId,
+          placementBatchId: testPbId,
+        })
+        .expect(201);
+
+      expect(res.body.departmentId).toBe(testDeptId);
+      expect(res.body.placementBatchId).toBe(testPbId);
+    });
+
+    it('Combination G: course + placementBatch (201 Created)', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/students')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          registerNumber: 'COMBO_G_001',
+          collegeEmail: 'combo_g@kahedu.edu.in',
+          firstName: 'ComboG',
+          courseId: testCrsId,
+          placementBatchId: testPbId,
+        })
+        .expect(201);
+
+      expect(res.body.courseId).toBe(testCrsId);
+      expect(res.body.placementBatchId).toBe(testPbId);
+    });
+
+    it('Combination H: all three department + course + placementBatch (201 Created)', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/students')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          registerNumber: 'COMBO_H_001',
+          collegeEmail: 'combo_h@kahedu.edu.in',
+          firstName: 'ComboH',
+          departmentId: testDeptId,
+          courseId: testCrsId,
+          placementBatchId: testPbId,
+        })
+        .expect(201);
+
+      expect(res.body.departmentId).toBe(testDeptId);
+      expect(res.body.courseId).toBe(testCrsId);
+      expect(res.body.placementBatchId).toBe(testPbId);
+    });
+
+    it('Removing placementBatch via PATCH (null) should clear relation', async () => {
+      // First create student with placementBatch
+      const created = await request(app.getHttpServer())
+        .post('/students')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          registerNumber: 'REMOVE_PB_001',
+          collegeEmail: 'remove_pb@kahedu.edu.in',
+          firstName: 'RemovePB',
+          placementBatchId: testPbId,
+        })
+        .expect(201);
+
+      expect(created.body.placementBatchId).toBe(testPbId);
+
+      // Clear placementBatchId
+      const updated = await request(app.getHttpServer())
+        .patch(`/students/${created.body.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          placementBatchId: null,
+        })
+        .expect(200);
+
+      expect(updated.body.placementBatchId).toBeNull();
+    });
+  });
+
   afterAll(async () => {
     const testEmails = [
       '25cap501@kahedu.edu.in',
@@ -549,6 +727,15 @@ describe('StudentsModule (e2e)', () => {
       '25cap801@kahedu.edu.in',
       '25cap601@kahedu.edu.in',
       'dup_email@kahedu.edu.in',
+      'combo_a@kahedu.edu.in',
+      'combo_b@kahedu.edu.in',
+      'combo_c@kahedu.edu.in',
+      'combo_d@kahedu.edu.in',
+      'combo_e@kahedu.edu.in',
+      'combo_f@kahedu.edu.in',
+      'combo_g@kahedu.edu.in',
+      'combo_h@kahedu.edu.in',
+      'remove_pb@kahedu.edu.in',
     ];
     await prisma.student.deleteMany({ where: { collegeEmail: { in: testEmails } } });
     await prisma.user.deleteMany({ where: { email: { in: testEmails } } });

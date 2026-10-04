@@ -54,11 +54,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       final meData = await _repository.getMe();
       final userData = meData['user'] ?? meData;
-      final profileData = meData['profile'];
+      final profileData = meData['profile'] ?? meData['student'] ?? meData['staff'];
       final user = UserIdentity.fromJson(userData);
 
       await _storage.saveUserData(jsonEncode(meData));
-      state = Authenticated(user: user, profile: profileData);
+      state = Authenticated(
+        user: user,
+        profile: profileData is Map<String, dynamic> ? profileData : null,
+      );
     } catch (e) {
       await _storage.clearAll();
       state = const Unauthenticated();
@@ -73,11 +76,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       final meData = await _repository.getMe();
       final userData = meData['user'] ?? meData;
-      final profileData = meData['profile'];
+      final profileData = meData['profile'] ?? meData['student'] ?? meData['staff'];
       final user = UserIdentity.fromJson(userData);
 
       await _storage.saveUserData(jsonEncode(meData));
-      state = Authenticated(user: user, profile: profileData);
+      state = Authenticated(
+        user: user,
+        profile: profileData is Map<String, dynamic> ? profileData : null,
+      );
 
       // Independently register FCM token without failing login
       _deviceTokenService.registerDeviceToken('fcm_placeholder_token', 'ANDROID');
@@ -98,10 +104,28 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final updatedProfileRes = await _repository.updateProfile(dto);
       final updatedProfile = updatedProfileRes['profile'] ?? updatedProfileRes;
 
+      final newProfileMap = updatedProfile is Map<String, dynamic> ? updatedProfile : currentState.profile;
+
       state = Authenticated(
         user: currentState.user,
-        profile: updatedProfile is Map<String, dynamic> ? updatedProfile : currentState.profile,
+        profile: newProfileMap,
       );
+
+      try {
+        final rawUserStr = await _storage.getUserData();
+        if (rawUserStr != null && rawUserStr.isNotEmpty) {
+          final meData = jsonDecode(rawUserStr) as Map<String, dynamic>;
+          if (meData.containsKey('student')) {
+            meData['student'] = newProfileMap;
+          } else if (meData.containsKey('staff')) {
+            meData['staff'] = newProfileMap;
+          } else {
+            meData['profile'] = newProfileMap;
+          }
+          await _storage.saveUserData(jsonEncode(meData));
+        }
+      } catch (_) {}
+
       return true;
     } catch (e) {
       return false;

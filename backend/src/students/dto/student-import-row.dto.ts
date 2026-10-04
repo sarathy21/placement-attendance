@@ -22,20 +22,20 @@ export class StudentImportRowDto {
   @IsString()
   lastName?: string;
 
-  @ApiProperty({ example: 'MCA' })
+  @ApiProperty({ example: 'MCA', required: false })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  departmentCode: string;
+  departmentCode?: string;
 
-  @ApiProperty({ example: 'MCA-FT' })
+  @ApiProperty({ example: 'MCA-FT', required: false })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  courseCode: string;
+  courseCode?: string;
 
-  @ApiProperty({ example: '2023-2025' })
+  @ApiProperty({ example: 'TCS-Prime-2026', required: false })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  batchName: string;
+  placementBatchName?: string;
 
   @ApiProperty({ example: '+919876543210', required: false })
   @IsOptional()

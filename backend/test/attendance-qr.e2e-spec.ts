@@ -78,9 +78,17 @@ describe('Phase 5: QR Attendance & Attendance Management (e2e)', () => {
     const student = await prisma.student.findUnique({ where: { userId: studentUserId } });
     if (student) {
       studentId = student.id;
-      departmentId = student.departmentId;
-      courseId = student.courseId;
-      batchId = student.batchId;
+      departmentId = student.departmentId || undefined;
+      courseId = student.courseId || undefined;
+      batchId = student.placementBatchId || undefined;
+      await prisma.student.update({
+        where: { id: student.id },
+        data: { status: 'ACTIVE', isPlacementEligible: true },
+      });
+      await prisma.user.update({
+        where: { id: student.userId },
+        data: { status: 'ACTIVE' },
+      });
     }
 
     const venue = await prisma.venue.upsert({
@@ -100,17 +108,23 @@ describe('Phase 5: QR Attendance & Attendance Management (e2e)', () => {
     // Clean up any stale test sessions from previous runs or other test suites
     const staleSessions = await prisma.classSession.findMany({
       where: {
-        title: {
-          in: [
-            'Phase 5 Active QR Session',
-            'Phase 5 Scheduled Session',
-            'Phase 5 Completed Session',
-            'Phase 5 Cancelled Session',
-            'Attendance QR Notif Session',
-            'Notifications Test Session',
-            'Renamed Title Only Session',
-          ],
-        },
+        OR: [
+          { staffId },
+          {
+            title: {
+              in: [
+                'Phase 5 Active QR Session',
+                'Phase 5 Scheduled Session',
+                'Phase 5 Completed Session',
+                'Phase 5 Cancelled Session',
+                'Attendance QR Notif Session',
+                'Notifications Test Session',
+                'Renamed Title Only Session',
+                'Staging QR Attendance Session',
+              ],
+            },
+          },
+        ],
       },
       select: { id: true },
     });
@@ -127,9 +141,8 @@ describe('Phase 5: QR Attendance & Attendance Management (e2e)', () => {
     const todayStr = now.toLocaleDateString('sv', { timeZone: 'Asia/Kolkata' });
 
     // IN_PROGRESS Session
-    const inProgressStart = new Date(now.getTime() - 10 * 60 * 1000);
-    const inProgressEnd = new Date(now.getTime() + 50 * 60 * 1000);
-    const inProgressDateStr = inProgressStart.toLocaleDateString('sv', { timeZone: 'Asia/Kolkata' });
+    const inProgressStart = new Date(now.getTime() + 10 * 60 * 1000);
+    const inProgressEnd = new Date(now.getTime() + 70 * 60 * 1000);
 
     const inProgressRes = await request(app.getHttpServer())
       .post('/sessions')
@@ -138,14 +151,14 @@ describe('Phase 5: QR Attendance & Attendance Management (e2e)', () => {
         title: 'Phase 5 Active QR Session',
         subjectId,
         venueId,
-        departmentId,
-        courseId,
-        batchId,
-        sessionDate: inProgressDateStr,
+        departmentId: departmentId || undefined,
+        courseId: courseId || undefined,
+        placementBatchId: batchId || undefined,
+        sessionDate: inProgressStart.toLocaleDateString('sv', { timeZone: 'Asia/Kolkata' }),
         startTime: inProgressStart.toISOString(),
         endTime: inProgressEnd.toISOString(),
-      })
-      .expect(201);
+      });
+    expect(inProgressRes.status).toBe(201);
     inProgressSessionId = inProgressRes.body.id;
 
     // Transition to IN_PROGRESS
@@ -158,7 +171,6 @@ describe('Phase 5: QR Attendance & Attendance Management (e2e)', () => {
     // SCHEDULED Session
     const scheduledStart = new Date(now.getTime() + 120 * 60 * 1000);
     const scheduledEnd = new Date(now.getTime() + 180 * 60 * 1000);
-    const scheduledDateStr = scheduledStart.toLocaleDateString('sv', { timeZone: 'Asia/Kolkata' });
 
     const scheduledRes = await request(app.getHttpServer())
       .post('/sessions')
@@ -167,10 +179,10 @@ describe('Phase 5: QR Attendance & Attendance Management (e2e)', () => {
         title: 'Phase 5 Scheduled Session',
         subjectId,
         venueId,
-        departmentId,
-        courseId,
-        batchId,
-        sessionDate: scheduledDateStr,
+        departmentId: departmentId || undefined,
+        courseId: courseId || undefined,
+        placementBatchId: batchId || undefined,
+        sessionDate: scheduledStart.toLocaleDateString('sv', { timeZone: 'Asia/Kolkata' }),
         startTime: scheduledStart.toISOString(),
         endTime: scheduledEnd.toISOString(),
       })
@@ -178,9 +190,8 @@ describe('Phase 5: QR Attendance & Attendance Management (e2e)', () => {
     scheduledSessionId = scheduledRes.body.id;
 
     // COMPLETED Session
-    const completedStart = new Date(now.getTime() - 120 * 60 * 1000);
-    const completedEnd = new Date(now.getTime() - 60 * 60 * 1000);
-    const completedDateStr = completedStart.toLocaleDateString('sv', { timeZone: 'Asia/Kolkata' });
+    const completedStart = new Date(now.getTime() + 200 * 60 * 1000);
+    const completedEnd = new Date(now.getTime() + 260 * 60 * 1000);
 
     const completedRes = await request(app.getHttpServer())
       .post('/sessions')
@@ -189,10 +200,10 @@ describe('Phase 5: QR Attendance & Attendance Management (e2e)', () => {
         title: 'Phase 5 Completed Session',
         subjectId,
         venueId,
-        departmentId,
-        courseId,
-        batchId,
-        sessionDate: completedDateStr,
+        departmentId: departmentId || undefined,
+        courseId: courseId || undefined,
+        placementBatchId: batchId || undefined,
+        sessionDate: completedStart.toLocaleDateString('sv', { timeZone: 'Asia/Kolkata' }),
         startTime: completedStart.toISOString(),
         endTime: completedEnd.toISOString(),
       })
@@ -206,9 +217,8 @@ describe('Phase 5: QR Attendance & Attendance Management (e2e)', () => {
       .expect(200);
 
     // CANCELLED Session
-    const cancelledStart = new Date(now.getTime() + 200 * 60 * 1000);
-    const cancelledEnd = new Date(now.getTime() + 260 * 60 * 1000);
-    const cancelledDateStr = cancelledStart.toLocaleDateString('sv', { timeZone: 'Asia/Kolkata' });
+    const cancelledStart = new Date(now.getTime() + 300 * 60 * 1000);
+    const cancelledEnd = new Date(now.getTime() + 360 * 60 * 1000);
 
     const cancelledRes = await request(app.getHttpServer())
       .post('/sessions')
@@ -217,10 +227,10 @@ describe('Phase 5: QR Attendance & Attendance Management (e2e)', () => {
         title: 'Phase 5 Cancelled Session',
         subjectId,
         venueId,
-        departmentId,
-        courseId,
-        batchId,
-        sessionDate: cancelledDateStr,
+        departmentId: departmentId || undefined,
+        courseId: courseId || undefined,
+        placementBatchId: batchId || undefined,
+        sessionDate: cancelledStart.toLocaleDateString('sv', { timeZone: 'Asia/Kolkata' }),
         startTime: cancelledStart.toISOString(),
         endTime: cancelledEnd.toISOString(),
       })

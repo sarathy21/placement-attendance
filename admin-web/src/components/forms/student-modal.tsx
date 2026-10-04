@@ -13,16 +13,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { studentsService } from '@/services/students.service';
 import { departmentsService } from '@/services/departments.service';
 import { coursesService } from '@/services/courses.service';
-import { batchesService } from '@/services/batches.service';
+import { placementBatchesService } from '@/services/placement-batches.service';
 import { showToast } from '@/hooks/use-toast';
 
 const updateStudentSchema = z.object({
   firstName: z.string().min(1, 'First name is required').max(50, 'First name too long'),
   lastName: z.string().max(50, 'Last name too long').optional(),
   phoneNumber: z.string().max(20, 'Phone number too long').optional(),
-  departmentId: z.string().min(1, 'Department is required'),
-  courseId: z.string().min(1, 'Course is required'),
-  batchId: z.string().min(1, 'Batch is required'),
+  departmentId: z.string().optional(),
+  courseId: z.string().optional(),
+  placementBatchId: z.string().optional(),
   isPlacementEligible: z.boolean(),
 });
 
@@ -52,13 +52,12 @@ export function StudentModal({ isOpen, onClose, student }: StudentModalProps) {
       phoneNumber: '',
       departmentId: '',
       courseId: '',
-      batchId: '',
+      placementBatchId: '',
       isPlacementEligible: true,
     },
   });
 
   const selectedDepartmentId = watch('departmentId');
-  const selectedCourseId = watch('courseId');
 
   // Fetch departments
   const { data: departments } = useQuery({
@@ -67,18 +66,18 @@ export function StudentModal({ isOpen, onClose, student }: StudentModalProps) {
     enabled: isOpen,
   });
 
-  // Fetch courses dependent on department
+  // Fetch courses dependent on department if department is selected, or all courses
   const { data: courses } = useQuery({
     queryKey: ['courses', selectedDepartmentId],
     queryFn: () => coursesService.getAll(selectedDepartmentId || undefined),
-    enabled: isOpen && !!selectedDepartmentId,
+    enabled: isOpen,
   });
 
-  // Fetch batches dependent on course
-  const { data: batches } = useQuery({
-    queryKey: ['batches', selectedCourseId],
-    queryFn: () => batchesService.getAll(selectedCourseId || undefined),
-    enabled: isOpen && !!selectedCourseId,
+  // Fetch independent Placement Batches
+  const { data: placementBatches } = useQuery({
+    queryKey: ['placement-batches'],
+    queryFn: () => placementBatchesService.getAll(),
+    enabled: isOpen,
   });
 
   useEffect(() => {
@@ -87,9 +86,9 @@ export function StudentModal({ isOpen, onClose, student }: StudentModalProps) {
         firstName: student.firstName,
         lastName: student.lastName || '',
         phoneNumber: student.phoneNumber || '',
-        departmentId: student.departmentId,
-        courseId: student.courseId,
-        batchId: student.batchId,
+        departmentId: student.departmentId || '',
+        courseId: student.courseId || '',
+        placementBatchId: student.placementBatchId || '',
         isPlacementEligible: student.isPlacementEligible,
       });
     }
@@ -105,7 +104,7 @@ export function StudentModal({ isOpen, onClose, student }: StudentModalProps) {
     label: `${c.code} - ${c.name}`,
   }));
 
-  const batchOptions = (batches || []).map((b) => ({
+  const placementBatchOptions = (placementBatches || []).map((b) => ({
     value: b.id,
     label: b.name,
   }));
@@ -118,8 +117,9 @@ export function StudentModal({ isOpen, onClose, student }: StudentModalProps) {
       showToast('success', 'Student Updated', 'Student profile details updated successfully.');
       onClose();
     },
-    onError: (err: Error) => {
-      showToast('error', 'Update Failed', err.message);
+    onError: (err: any) => {
+      const msg = err.response?.data?.message || err.message || 'Update failed';
+      showToast('error', 'Update Failed', Array.isArray(msg) ? msg.join(', ') : msg);
     },
   });
 
@@ -130,9 +130,9 @@ export function StudentModal({ isOpen, onClose, student }: StudentModalProps) {
       firstName: formData.firstName.trim(),
       lastName: formData.lastName?.trim() || undefined,
       phoneNumber: formData.phoneNumber?.trim() || undefined,
-      departmentId: formData.departmentId,
-      courseId: formData.courseId,
-      batchId: formData.batchId,
+      departmentId: formData.departmentId || undefined,
+      courseId: formData.courseId || undefined,
+      placementBatchId: formData.placementBatchId || undefined,
       isPlacementEligible: formData.isPlacementEligible,
     };
 
@@ -143,13 +143,6 @@ export function StudentModal({ isOpen, onClose, student }: StudentModalProps) {
     const newDeptId = e.target.value;
     setValue('departmentId', newDeptId);
     setValue('courseId', '');
-    setValue('batchId', '');
-  };
-
-  const handleCourseChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newCourseId = e.target.value;
-    setValue('courseId', newCourseId);
-    setValue('batchId', '');
   };
 
   if (!student) return null;
@@ -159,7 +152,7 @@ export function StudentModal({ isOpen, onClose, student }: StudentModalProps) {
       isOpen={isOpen}
       onClose={onClose}
       title="Edit Placement Student"
-      description={`Update profile and academic assignments for ${student.registerNumber}.`}
+      description={`Update profile and academic/placement details for ${student.registerNumber}.`}
       maxWidth="lg"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -183,7 +176,7 @@ export function StudentModal({ isOpen, onClose, student }: StudentModalProps) {
         {/* Editable Names */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
-            label="First Name"
+            label="First Name *"
             placeholder="First name"
             disabled={updateMutation.isPending}
             error={errors.firstName?.message}
@@ -207,11 +200,11 @@ export function StudentModal({ isOpen, onClose, student }: StudentModalProps) {
           {...register('phoneNumber')}
         />
 
-        {/* Academic Hierarchy Cascade Dropdowns */}
+        {/* Academic & Placement Dropdowns */}
         <div className="space-y-4">
           <Select
-            label="Department"
-            placeholder="Select Department"
+            label="Department (Optional)"
+            placeholder="Select Department (Optional)"
             options={departmentOptions}
             disabled={updateMutation.isPending}
             error={errors.departmentId?.message}
@@ -220,22 +213,21 @@ export function StudentModal({ isOpen, onClose, student }: StudentModalProps) {
           />
 
           <Select
-            label="Course"
-            placeholder={selectedDepartmentId ? 'Select Course' : 'Select Department first'}
+            label="Course (Optional)"
+            placeholder="Select Course (Optional)"
             options={courseOptions}
-            disabled={!selectedDepartmentId || updateMutation.isPending}
+            disabled={updateMutation.isPending}
             error={errors.courseId?.message}
             {...register('courseId')}
-            onChange={handleCourseChange}
           />
 
           <Select
-            label="Batch"
-            placeholder={selectedCourseId ? 'Select Batch' : 'Select Course first'}
-            options={batchOptions}
-            disabled={!selectedCourseId || updateMutation.isPending}
-            error={errors.batchId?.message}
-            {...register('batchId')}
+            label="Placement Batch (Optional)"
+            placeholder="Select Placement Batch (Optional)"
+            options={placementBatchOptions}
+            disabled={updateMutation.isPending}
+            error={errors.placementBatchId?.message}
+            {...register('placementBatchId')}
           />
         </div>
 

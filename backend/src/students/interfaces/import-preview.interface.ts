@@ -5,9 +5,9 @@ export interface ParsedStudentRow {
   collegeEmail: string;
   firstName: string;
   lastName?: string;
-  departmentCode: string;
-  courseCode: string;
-  batchName: string;
+  departmentCode?: string;
+  courseCode?: string;
+  placementBatchName?: string;
   phoneNumber?: string;
 }
 

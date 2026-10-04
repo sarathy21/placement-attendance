@@ -27,10 +27,10 @@ export class UpdateStudentDto {
   @IsUUID()
   courseId?: string;
 
-  @ApiPropertyOptional({ description: 'Batch UUID' })
+  @ApiPropertyOptional({ description: 'Placement Batch UUID' })
   @IsOptional()
   @IsUUID()
-  batchId?: string;
+  placementBatchId?: string;
 
   @ApiPropertyOptional({ description: 'Placement eligibility flag' })
   @IsOptional()

@@ -32,10 +32,10 @@ export class UpdateSessionDto {
   @IsUUID()
   courseId?: string;
 
-  @ApiPropertyOptional({ description: 'Target Batch UUID' })
+  @ApiPropertyOptional({ description: 'Target Placement Batch UUID' })
   @IsOptional()
   @IsUUID()
-  batchId?: string;
+  placementBatchId?: string;
 
   @ApiPropertyOptional({ example: '2026-09-30', description: 'Session date' })
   @IsOptional()

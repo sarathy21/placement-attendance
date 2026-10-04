@@ -3,9 +3,9 @@ class CreateSessionDto {
   final String subjectId;
   final String venueId;
   final String? staffId;
-  final String departmentId;
+  final String? departmentId;
   final String? courseId;
-  final String? batchId;
+  final String? placementBatchId;
   final String sessionDate;
   final String startTime;
   final String endTime;
@@ -15,9 +15,9 @@ class CreateSessionDto {
     required this.subjectId,
     required this.venueId,
     this.staffId,
-    required this.departmentId,
+    this.departmentId,
     this.courseId,
-    this.batchId,
+    this.placementBatchId,
     required this.sessionDate,
     required this.startTime,
     required this.endTime,
@@ -28,14 +28,14 @@ class CreateSessionDto {
       'title': title,
       'subjectId': subjectId,
       'venueId': venueId,
-      'departmentId': departmentId,
       'sessionDate': sessionDate,
       'startTime': startTime,
       'endTime': endTime,
     };
     if (staffId != null && staffId!.isNotEmpty) map['staffId'] = staffId;
+    if (departmentId != null && departmentId!.isNotEmpty) map['departmentId'] = departmentId;
     if (courseId != null && courseId!.isNotEmpty) map['courseId'] = courseId;
-    if (batchId != null && batchId!.isNotEmpty) map['batchId'] = batchId;
+    if (placementBatchId != null && placementBatchId!.isNotEmpty) map['placementBatchId'] = placementBatchId;
     return map;
   }
 }

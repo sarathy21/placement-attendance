@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { studentsService } from '@/services/students.service';
 import { departmentsService } from '@/services/departments.service';
 import { coursesService } from '@/services/courses.service';
-import { batchesService } from '@/services/batches.service';
+import { placementBatchesService } from '@/services/placement-batches.service';
 import { Student, GetStudentsFilterParams } from '@/types';
 import { StudentModal } from '@/components/forms/student-modal';
 import { StudentDetailModal } from '@/components/forms/student-detail-modal';
@@ -46,7 +46,7 @@ export default function StudentsPage() {
 
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [courseFilter, setCourseFilter] = useState('');
-  const [batchFilter, setBatchFilter] = useState('');
+  const [placementBatchFilter, setPlacementBatchFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [eligibilityFilter, setEligibilityFilter] = useState<string>(''); // '', 'true', 'false'
 
@@ -65,7 +65,7 @@ export default function StudentsPage() {
 
   const debouncedSearch = useDebounce(searchQuery, 300);
 
-  // Filter Cascade Handlers
+  // Filter Handlers
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
     setPage(1);
@@ -74,18 +74,16 @@ export default function StudentsPage() {
   const handleDepartmentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setDepartmentFilter(e.target.value);
     setCourseFilter('');
-    setBatchFilter('');
     setPage(1);
   };
 
   const handleCourseChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setCourseFilter(e.target.value);
-    setBatchFilter('');
     setPage(1);
   };
 
-  const handleBatchChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setBatchFilter(e.target.value);
+  const handlePlacementBatchChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setPlacementBatchFilter(e.target.value);
     setPage(1);
   };
 
@@ -99,7 +97,6 @@ export default function StudentsPage() {
     setPage(1);
   };
 
-  // Convert eligibilityFilter to boolean or undefined
   const parseEligibilityFilter = (): boolean | undefined => {
     if (eligibilityFilter === 'true') return true;
     if (eligibilityFilter === 'false') return false;
@@ -112,7 +109,7 @@ export default function StudentsPage() {
     limit,
     ...(departmentFilter ? { departmentId: departmentFilter } : {}),
     ...(courseFilter ? { courseId: courseFilter } : {}),
-    ...(batchFilter ? { batchId: batchFilter } : {}),
+    ...(placementBatchFilter ? { placementBatchId: placementBatchFilter } : {}),
     ...(statusFilter ? { status: statusFilter } : {}),
     ...(parseEligibilityFilter() !== undefined ? { isPlacementEligible: parseEligibilityFilter() } : {}),
     ...(debouncedSearch ? { search: debouncedSearch } : {}),
@@ -136,10 +133,10 @@ export default function StudentsPage() {
     queryFn: () => coursesService.getAll(departmentFilter || undefined),
   });
 
-  // Fetch Batches dependent on course
-  const { data: batches } = useQuery({
-    queryKey: ['batches', courseFilter],
-    queryFn: () => batchesService.getAll(courseFilter || undefined),
+  // Fetch Placement Batches
+  const { data: placementBatches } = useQuery({
+    queryKey: ['placement-batches'],
+    queryFn: () => placementBatchesService.getAll(),
   });
 
   const departmentOptions = (departments || []).map((d) => ({
@@ -152,7 +149,7 @@ export default function StudentsPage() {
     label: `${c.code} - ${c.name}`,
   }));
 
-  const batchOptions = (batches || []).map((b) => ({
+  const placementBatchOptions = (placementBatches || []).map((b) => ({
     value: b.id,
     label: b.name,
   }));
@@ -188,7 +185,6 @@ export default function StudentsPage() {
     },
   });
 
-  // Action handlers
   const handleEdit = (student: Student) => {
     setSelectedStudentForEdit(student);
     setIsEditModalOpen(true);
@@ -287,12 +283,12 @@ export default function StudentsPage() {
               className="text-xs"
             />
 
-            {/* Batch Filter */}
+            {/* Placement Batch Filter */}
             <Select
-              placeholder="All Batches"
-              options={batchOptions}
-              value={batchFilter}
-              onChange={handleBatchChange}
+              placeholder="All Placement Batches"
+              options={placementBatchOptions}
+              value={placementBatchFilter}
+              onChange={handlePlacementBatchChange}
               className="text-xs"
             />
 
@@ -335,18 +331,18 @@ export default function StudentsPage() {
         <EmptyState
           title="No Placement Students Found"
           description={
-            searchQuery || departmentFilter || courseFilter || batchFilter || statusFilter || eligibilityFilter
+            searchQuery || departmentFilter || courseFilter || placementBatchFilter || statusFilter || eligibilityFilter
               ? 'No students match your selected search and filter criteria.'
               : 'Get started by uploading your first batch of placement students using Excel import.'
           }
           icon={GraduationCap}
           actionLabel={
-            searchQuery || departmentFilter || courseFilter || batchFilter || statusFilter || eligibilityFilter
+            searchQuery || departmentFilter || courseFilter || placementBatchFilter || statusFilter || eligibilityFilter
               ? undefined
               : 'Import Students'
           }
           onAction={
-            searchQuery || departmentFilter || courseFilter || batchFilter || statusFilter || eligibilityFilter
+            searchQuery || departmentFilter || courseFilter || placementBatchFilter || statusFilter || eligibilityFilter
               ? undefined
               : () => setIsImportModalOpen(true)
           }
@@ -362,7 +358,7 @@ export default function StudentsPage() {
                   <th className="px-6 py-3.5">College Email</th>
                   <th className="px-6 py-3.5">Department</th>
                   <th className="px-6 py-3.5">Course</th>
-                  <th className="px-6 py-3.5">Batch</th>
+                  <th className="px-6 py-3.5">Placement Batch</th>
                   <th className="px-6 py-3.5">Placement Eligibility</th>
                   <th className="px-6 py-3.5">Status</th>
                   <th className="px-6 py-3.5 text-right">Actions</th>
@@ -402,9 +398,13 @@ export default function StudentsPage() {
                       )}
                     </td>
 
-                    {/* Batch */}
+                    {/* Placement Batch */}
                     <td className="px-6 py-4 text-slate-600 text-xs">
-                      {student.batch?.name || '—'}
+                      {student.placementBatch ? (
+                        <span className="font-semibold text-emerald-800">{student.placementBatch.name}</span>
+                      ) : (
+                        <span className="text-slate-400 italic">—</span>
+                      )}
                     </td>
 
                     {/* Placement Eligibility */}

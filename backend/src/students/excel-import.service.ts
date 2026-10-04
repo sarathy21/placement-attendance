@@ -4,7 +4,6 @@ import * as argon2 from 'argon2';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { ConfirmImportDto } from './dto/confirm-import.dto';
-import { StudentImportRowDto } from './dto/student-import-row.dto';
 import { ImportPreviewResponse, ParsedStudentRow, StudentRowPreview } from './interfaces/import-preview.interface';
 import { UserRole, UserStatus } from '@prisma/client';
 
@@ -40,27 +39,28 @@ export class ExcelImportService {
         headerMap.set('registerNumber', colNumber);
       } else if (normalized.includes('email')) {
         headerMap.set('collegeEmail', colNumber);
+      } else if (normalized.includes('placementbatch') || (normalized.includes('placement') && normalized.includes('batch'))) {
+        headerMap.set('placementBatchName', colNumber);
+      } else if (normalized.includes('batch')) {
+        headerMap.set('placementBatchName', colNumber);
       } else if (normalized.includes('first')) {
         headerMap.set('firstName', colNumber);
       } else if (normalized.includes('last')) {
         headerMap.set('lastName', colNumber);
+      } else if (normalized.includes('name')) {
+        headerMap.set('name', colNumber);
       } else if (normalized.includes('dept') || normalized.includes('department')) {
         headerMap.set('departmentCode', colNumber);
       } else if (normalized.includes('course')) {
         headerMap.set('courseCode', colNumber);
-      } else if (normalized.includes('batch')) {
-        headerMap.set('batchName', colNumber);
       } else if (normalized.includes('phone') || normalized.includes('mobile')) {
         headerMap.set('phoneNumber', colNumber);
       }
     });
 
-    const requiredColumns = ['registerNumber', 'collegeEmail', 'firstName', 'departmentCode', 'courseCode', 'batchName'];
-    const missingColumns = requiredColumns.filter((col) => !headerMap.has(col));
-    if (missingColumns.length > 0) {
-      throw new BadRequestException(
-        `Excel sheet is missing required column headers: ${missingColumns.join(', ')}`,
-      );
+    const hasName = headerMap.has('firstName') || headerMap.has('name');
+    if (!headerMap.has('registerNumber') || !headerMap.has('collegeEmail') || !hasName) {
+      throw new BadRequestException('Excel sheet is missing required column headers: Register No, Name, Email');
     }
 
     const dataRowCount = worksheet.rowCount - 1;
@@ -69,17 +69,21 @@ export class ExcelImportService {
     }
 
     // 2. Fetch Reference DB Data for Validation
-    const [departments, courses, batches, existingUsers, existingStudents] = await Promise.all([
+    const [departments, courses, placementBatches, existingUsers, existingStudents] = await Promise.all([
       this.prisma.department.findMany(),
       this.prisma.course.findMany(),
-      this.prisma.batch.findMany(),
+      this.prisma.placementBatch.findMany(),
       this.prisma.user.findMany({ select: { email: true } }),
       this.prisma.student.findMany({ select: { registerNumber: true, collegeEmail: true } }),
     ]);
 
-    const deptMap = new Map(departments.map((d) => [d.code.trim().toUpperCase(), d]));
-    const courseMap = new Map(courses.map((c) => [c.code.trim().toUpperCase(), c]));
-    const batchMap = new Map(batches.map((b) => [`${b.courseId}_${b.name.trim().toUpperCase()}`, b]));
+    const deptByCode = new Map(departments.map((d) => [d.code.trim().toUpperCase(), d]));
+    const deptByName = new Map(departments.map((d) => [d.name.trim().toUpperCase(), d]));
+
+    const courseByCode = new Map(courses.map((c) => [c.code.trim().toUpperCase(), c]));
+    const courseByName = new Map(courses.map((c) => [c.name.trim().toUpperCase(), c]));
+
+    const pbByName = new Map(placementBatches.map((p) => [p.name.trim().toUpperCase(), p]));
 
     const existingEmails = new Set([
       ...existingUsers.map((u) => u.email.trim().toLowerCase()),
@@ -110,11 +114,19 @@ export class ExcelImportService {
 
       const registerNumber = getValue('registerNumber');
       const collegeEmail = getValue('collegeEmail').toLowerCase();
-      const firstName = getValue('firstName');
-      const lastName = getValue('lastName');
-      const departmentCode = getValue('departmentCode').toUpperCase();
-      const courseCode = getValue('courseCode').toUpperCase();
-      const batchName = getValue('batchName').toUpperCase();
+      let firstName = getValue('firstName');
+      let lastName: string | undefined = getValue('lastName');
+      const fullName = getValue('name');
+
+      if (!firstName && fullName) {
+        const parts = fullName.trim().split(/\s+/);
+        firstName = parts[0] || '';
+        lastName = parts.slice(1).join(' ') || undefined;
+      }
+
+      const departmentVal = getValue('departmentCode');
+      const courseVal = getValue('courseCode');
+      const placementBatchVal = getValue('placementBatchName');
       const phoneNumber = getValue('phoneNumber');
 
       const data: ParsedStudentRow = {
@@ -122,9 +134,9 @@ export class ExcelImportService {
         collegeEmail,
         firstName,
         lastName: lastName || undefined,
-        departmentCode,
-        courseCode,
-        batchName,
+        departmentCode: departmentVal || undefined,
+        courseCode: courseVal || undefined,
+        placementBatchName: placementBatchVal || undefined,
         phoneNumber: phoneNumber || undefined,
       };
 
@@ -167,7 +179,7 @@ export class ExcelImportService {
 
       // First Name Validation
       if (!firstName) {
-        errors.push('First Name is required');
+        errors.push('Name is required');
       }
 
       // Phone Number Validation (if provided)
@@ -178,30 +190,37 @@ export class ExcelImportService {
         }
       }
 
-      // Academic Consistency Validation
-      const dept = deptMap.get(departmentCode);
-      if (!departmentCode) {
-        errors.push('Department Code is required');
-      } else if (!dept) {
-        errors.push(`Department code '${departmentCode}' does not exist in database`);
+      // Department Validation (if supplied)
+      let dept: any = null;
+      if (departmentVal) {
+        const upperDept = departmentVal.toUpperCase();
+        dept = deptByCode.get(upperDept) || deptByName.get(upperDept);
+        if (!dept) {
+          errors.push(`Unknown department '${departmentVal}'`);
+        }
       }
 
-      const course = courseMap.get(courseCode);
-      if (!courseCode) {
-        errors.push('Course Code is required');
-      } else if (!course) {
-        errors.push(`Course code '${courseCode}' does not exist in database`);
-      } else if (dept && course.departmentId !== dept.id) {
-        errors.push(`Course '${courseCode}' does not belong to Department '${departmentCode}'`);
+      // Course Validation (if supplied)
+      let course: any = null;
+      if (courseVal) {
+        const upperCourse = courseVal.toUpperCase();
+        course = courseByCode.get(upperCourse) || courseByName.get(upperCourse);
+        if (!course) {
+          errors.push(`Unknown course '${courseVal}'`);
+        }
       }
 
-      if (!batchName) {
-        errors.push('Batch Name is required');
-      } else if (course) {
-        const batchKey = `${course.id}_${batchName}`;
-        const batch = batchMap.get(batchKey);
-        if (!batch) {
-          errors.push(`Batch '${batchName}' does not exist for Course '${courseCode}'`);
+      // Inconsistent Department / Course Validation
+      if (dept && course && course.departmentId !== dept.id) {
+        errors.push(`Inconsistent department/course: Course '${courseVal}' does not belong to Department '${departmentVal}'`);
+      }
+
+      // Placement Batch Validation (if supplied)
+      if (placementBatchVal) {
+        const upperPb = placementBatchVal.toUpperCase();
+        const pb = pbByName.get(upperPb);
+        if (!pb) {
+          errors.push(`Unknown placement batch '${placementBatchVal}'`);
         }
       }
 
@@ -260,17 +279,21 @@ export class ExcelImportService {
     }
 
     // 1. Fetch DB records for re-validation and mapping
-    const [departments, courses, batches, existingUsers, existingStudents] = await Promise.all([
+    const [departments, courses, placementBatches, existingUsers, existingStudents] = await Promise.all([
       this.prisma.department.findMany(),
       this.prisma.course.findMany(),
-      this.prisma.batch.findMany(),
+      this.prisma.placementBatch.findMany(),
       this.prisma.user.findMany({ select: { email: true } }),
       this.prisma.student.findMany({ select: { registerNumber: true, collegeEmail: true } }),
     ]);
 
-    const deptMap = new Map(departments.map((d) => [d.code.trim().toUpperCase(), d]));
-    const courseMap = new Map(courses.map((c) => [c.code.trim().toUpperCase(), c]));
-    const batchMap = new Map(batches.map((b) => [`${b.courseId}_${b.name.trim().toUpperCase()}`, b]));
+    const deptByCode = new Map(departments.map((d) => [d.code.trim().toUpperCase(), d]));
+    const deptByName = new Map(departments.map((d) => [d.name.trim().toUpperCase(), d]));
+
+    const courseByCode = new Map(courses.map((c) => [c.code.trim().toUpperCase(), c]));
+    const courseByName = new Map(courses.map((c) => [c.name.trim().toUpperCase(), c]));
+
+    const pbByName = new Map(placementBatches.map((p) => [p.name.trim().toUpperCase(), p]));
 
     const existingEmails = new Set([
       ...existingUsers.map((u) => u.email.trim().toLowerCase()),
@@ -285,9 +308,9 @@ export class ExcelImportService {
       const row = dto.rows[i];
       const reg = row.registerNumber.trim().toUpperCase();
       const email = row.collegeEmail.trim().toLowerCase();
-      const deptCode = row.departmentCode.trim().toUpperCase();
-      const courseCode = row.courseCode.trim().toUpperCase();
-      const batchName = row.batchName.trim().toUpperCase();
+      const deptVal = row.departmentCode ? row.departmentCode.trim().toUpperCase() : undefined;
+      const courseVal = row.courseCode ? row.courseCode.trim().toUpperCase() : undefined;
+      const pbVal = row.placementBatchName ? row.placementBatchName.trim().toUpperCase() : undefined;
 
       if (existingRegNumbers.has(reg)) {
         throw new BadRequestException(`Import failed: Register Number '${row.registerNumber}' already exists in database`);
@@ -296,18 +319,31 @@ export class ExcelImportService {
         throw new BadRequestException(`Import failed: College Email '${row.collegeEmail}' already exists in database`);
       }
 
-      const dept = deptMap.get(deptCode);
-      if (!dept) {
-        throw new BadRequestException(`Import failed: Department Code '${row.departmentCode}' not found`);
+      let dept: any = null;
+      if (deptVal) {
+        dept = deptByCode.get(deptVal) || deptByName.get(deptVal);
+        if (!dept) {
+          throw new BadRequestException(`Import failed: Department '${row.departmentCode}' not found`);
+        }
       }
-      const course = courseMap.get(courseCode);
-      if (!course || course.departmentId !== dept.id) {
+
+      let course: any = null;
+      if (courseVal) {
+        course = courseByCode.get(courseVal) || courseByName.get(courseVal);
+        if (!course) {
+          throw new BadRequestException(`Import failed: Course '${row.courseCode}' not found`);
+        }
+      }
+
+      if (dept && course && course.departmentId !== dept.id) {
         throw new BadRequestException(`Import failed: Course '${row.courseCode}' does not belong to Department '${row.departmentCode}'`);
       }
-      const batchKey = `${course.id}_${batchName}`;
-      const batch = batchMap.get(batchKey);
-      if (!batch) {
-        throw new BadRequestException(`Import failed: Batch '${row.batchName}' not found for Course '${row.courseCode}'`);
+
+      if (pbVal) {
+        const pb = pbByName.get(pbVal);
+        if (!pb) {
+          throw new BadRequestException(`Import failed: Placement Batch '${row.placementBatchName}' not found`);
+        }
       }
     }
 
@@ -320,11 +356,14 @@ export class ExcelImportService {
           const email = row.collegeEmail.trim().toLowerCase();
           const regNumber = row.registerNumber.trim();
 
-          const dept = deptMap.get(row.departmentCode.trim().toUpperCase())!;
-          const course = courseMap.get(row.courseCode.trim().toUpperCase())!;
-          const batch = batchMap.get(`${course.id}_${row.batchName.trim().toUpperCase()}`)!;
+          const deptVal = row.departmentCode ? row.departmentCode.trim().toUpperCase() : undefined;
+          const courseVal = row.courseCode ? row.courseCode.trim().toUpperCase() : undefined;
+          const pbVal = row.placementBatchName ? row.placementBatchName.trim().toUpperCase() : undefined;
 
-          // Generate initial password from registerNumber and hash with Argon2
+          const dept = deptVal ? (deptByCode.get(deptVal) || deptByName.get(deptVal)) : null;
+          const course = courseVal ? (courseByCode.get(courseVal) || courseByName.get(courseVal)) : null;
+          const pb = pbVal ? pbByName.get(pbVal) : null;
+
           const passwordHash = await argon2.hash(regNumber);
 
           const user = await tx.user.create({
@@ -344,9 +383,9 @@ export class ExcelImportService {
               firstName: row.firstName.trim(),
               lastName: row.lastName?.trim() || null,
               phoneNumber: row.phoneNumber?.trim() || null,
-              departmentId: dept.id,
-              courseId: course.id,
-              batchId: batch.id,
+              departmentId: dept ? dept.id : (course ? course.departmentId : null),
+              courseId: course ? course.id : null,
+              placementBatchId: pb ? pb.id : null,
               isPlacementEligible: true,
               status: UserStatus.ACTIVE,
             },

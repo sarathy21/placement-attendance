@@ -107,7 +107,7 @@ export class AuthService {
           include: {
             department: true,
             course: true,
-            batch: true,
+            placementBatch: true,
           },
         },
         staff: {
@@ -187,7 +187,7 @@ export class AuthService {
         include: {
           department: true,
           course: true,
-          batch: true,
+          placementBatch: true,
         },
       });
 
