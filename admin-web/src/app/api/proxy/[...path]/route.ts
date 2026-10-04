@@ -20,10 +20,15 @@ async function handleProxy(
     const searchParams = req.nextUrl.search;
     const targetUrl = `${API_BASE_URL}/${targetPath}${searchParams}`;
 
+    const contentType = req.headers.get('content-type');
+
     const headers: Record<string, string> = {
       Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
     };
+
+    if (contentType) {
+      headers['Content-Type'] = contentType;
+    }
 
     const fetchOptions: RequestInit = {
       method: req.method,
@@ -32,9 +37,14 @@ async function handleProxy(
     };
 
     if (req.method !== 'GET' && req.method !== 'HEAD') {
-      const bodyText = await req.text();
-      if (bodyText) {
-        fetchOptions.body = bodyText;
+      if (contentType && contentType.includes('multipart/form-data')) {
+        const arrayBuffer = await req.arrayBuffer();
+        fetchOptions.body = Buffer.from(arrayBuffer);
+      } else {
+        const bodyText = await req.text();
+        if (bodyText) {
+          fetchOptions.body = bodyText;
+        }
       }
     }
 

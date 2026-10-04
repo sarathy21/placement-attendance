@@ -23,6 +23,7 @@ const navItems = [
   { name: 'Subjects', href: '/subjects', icon: BookOpen },
   { name: 'Venues', href: '/venues', icon: MapPin },
   { name: 'Staff Members', href: '/staff', icon: UserCheck },
+  { name: 'Students', href: '/students', icon: GraduationCap },
 ];
 
 export function Sidebar() {

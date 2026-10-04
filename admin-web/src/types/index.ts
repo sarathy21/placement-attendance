@@ -197,3 +197,105 @@ export interface UpdateStaffStatusInput {
 export interface ResetStaffPasswordInput {
   password: string;
 }
+
+// Student Management Types
+export interface Student {
+  id: string;
+  userId: string;
+  registerNumber: string;
+  collegeEmail: string;
+  firstName: string;
+  lastName?: string | null;
+  phoneNumber?: string | null;
+  avatarUrl?: string | null;
+  departmentId: string;
+  department?: Department;
+  courseId: string;
+  course?: Course;
+  batchId: string;
+  batch?: Batch;
+  isPlacementEligible: boolean;
+  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  user: User;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GetStudentsFilterParams {
+  departmentId?: string;
+  courseId?: string;
+  batchId?: string;
+  status?: string;
+  isPlacementEligible?: boolean;
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface StudentListResponse {
+  data: Student[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export interface UpdateStudentInput {
+  firstName?: string;
+  lastName?: string;
+  phoneNumber?: string;
+  departmentId?: string;
+  courseId?: string;
+  batchId?: string;
+  isPlacementEligible?: boolean;
+}
+
+export interface UpdateStudentStatusInput {
+  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+}
+
+export interface StudentImportRow {
+  registerNumber: string;
+  collegeEmail: string;
+  firstName: string;
+  lastName?: string;
+  departmentCode: string;
+  courseCode: string;
+  batchName: string;
+  phoneNumber?: string;
+}
+
+export interface ConfirmImportInput {
+  rows: StudentImportRow[];
+}
+
+export type RowImportStatus = 'VALID' | 'INVALID' | 'DUPLICATE';
+
+export interface ParsedStudentRow {
+  registerNumber: string;
+  collegeEmail: string;
+  firstName: string;
+  lastName?: string;
+  departmentCode: string;
+  courseCode: string;
+  batchName: string;
+  phoneNumber?: string;
+}
+
+export interface StudentRowPreview {
+  rowNumber: number;
+  status: RowImportStatus;
+  data: ParsedStudentRow;
+  errors: string[];
+}
+
+export interface ImportPreviewResponse {
+  totalRows: number;
+  validRows: number;
+  invalidRows: number;
+  duplicateRows: number;
+  canImport: boolean;
+  rows: StudentRowPreview[];
+}

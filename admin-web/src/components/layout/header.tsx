@@ -12,6 +12,7 @@ const routeTitles: Record<string, string> = {
   '/subjects': 'Subjects & Training Modules',
   '/venues': 'Campus Venues',
   '/staff': 'Staff Management',
+  '/students': 'Placement Student Management',
 };
 
 export function Header() {
