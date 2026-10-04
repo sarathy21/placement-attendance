@@ -9,7 +9,6 @@ import {
   Building2,
   GraduationCap,
   Users,
-  BookOpen,
   MapPin,
   ShieldCheck,
   UserCheck,
@@ -30,7 +29,6 @@ const placementNav = [
 const academicNav = [
   { name: 'Departments', href: '/departments', icon: Building2 },
   { name: 'Courses', href: '/courses', icon: GraduationCap },
-  { name: 'Subjects', href: '/subjects', icon: BookOpen },
   { name: 'Venues', href: '/venues', icon: MapPin },
 ];
 

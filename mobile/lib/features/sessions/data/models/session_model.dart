@@ -67,6 +67,7 @@ class SessionStaffModel {
 class SessionModel {
   final String id;
   final String title;
+  final String? description;
   final DateTime sessionDate;
   final DateTime startTime;
   final DateTime endTime;
@@ -81,6 +82,7 @@ class SessionModel {
   const SessionModel({
     required this.id,
     required this.title,
+    this.description,
     required this.sessionDate,
     required this.startTime,
     required this.endTime,
@@ -103,6 +105,7 @@ class SessionModel {
     return SessionModel(
       id: json['id'] ?? '',
       title: json['title'] ?? '',
+      description: json['description']?.toString(),
       sessionDate: DateTime.tryParse(json['sessionDate'] ?? '') ?? DateTime.now(),
       startTime: DateTime.tryParse(json['startTime'] ?? '') ?? DateTime.now(),
       endTime: DateTime.tryParse(json['endTime'] ?? '') ?? DateTime.now(),
@@ -143,6 +146,9 @@ class SessionModel {
   }
 
   String get displaySubject {
+    if (description != null && description!.isNotEmpty) {
+      return description!;
+    }
     if (subject != null) {
       return subject!.code.isNotEmpty ? '${subject!.code} • ${subject!.title}' : subject!.title;
     }

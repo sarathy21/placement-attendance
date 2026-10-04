@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsUUID, IsBoolean } from 'class-validator';
+import { IsOptional, IsString, IsUUID, IsBoolean, ValidateIf } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateStudentDto {
@@ -29,8 +29,9 @@ export class UpdateStudentDto {
 
   @ApiPropertyOptional({ description: 'Placement Batch UUID' })
   @IsOptional()
+  @ValidateIf((object, value) => value !== null)
   @IsUUID()
-  placementBatchId?: string;
+  placementBatchId?: string | null;
 
   @ApiPropertyOptional({ description: 'Placement eligibility flag' })
   @IsOptional()

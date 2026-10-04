@@ -5,13 +5,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { placementBatchesService } from '@/services/placement-batches.service';
 import { PlacementBatch } from '@/types';
 import { PlacementBatchModal } from '@/components/forms/placement-batch-modal';
+import { PlacementBatchDetailModal } from '@/components/forms/placement-batch-detail-modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TableSkeleton } from '@/components/shared/loading-skeleton';
 import { EmptyState } from '@/components/shared/empty-state';
-import { Plus, Users, Edit2, Trash2, Search } from 'lucide-react';
+import { Plus, Users, Edit2, Trash2, Search, UserPlus } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { showToast } from '@/hooks/use-toast';
 
@@ -21,6 +22,9 @@ export default function PlacementBatchesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState<PlacementBatch | null>(null);
   const [deletingBatchId, setDeletingBatchId] = useState<string | null>(null);
+
+  const [detailBatch, setDetailBatch] = useState<PlacementBatch | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   const { data: batches = [], isLoading, isError, error } = useQuery({
     queryKey: ['placement-batches'],
@@ -157,6 +161,19 @@ export default function PlacementBatchesPage() {
                       <Button
                         variant="ghost"
                         size="sm"
+                        onClick={() => {
+                          setDetailBatch(batch);
+                          setIsDetailModalOpen(true);
+                        }}
+                        className="gap-1.5 text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        <span>Members</span>
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => handleEdit(batch)}
                         className="gap-1.5 text-slate-700 hover:text-emerald-700 hover:bg-emerald-50"
                       >
@@ -187,6 +204,13 @@ export default function PlacementBatchesPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         batch={selectedBatch}
+      />
+
+      {/* Detail / Member Assignment Modal */}
+      <PlacementBatchDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        batch={detailBatch}
       />
     </div>
   );

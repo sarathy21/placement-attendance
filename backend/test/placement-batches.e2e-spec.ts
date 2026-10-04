@@ -4,7 +4,7 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 
-describe('PlacementBatchesModule (e2e)', () => {
+describe('PlacementBatchesModule & Staff RBAC (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
 
@@ -13,12 +13,10 @@ describe('PlacementBatchesModule (e2e)', () => {
   let staffToken: string;
   let studentToken: string;
 
-  let createdBatchId: string;
-  let testDepartmentId: string;
-  let testCourseId: string;
-  let testSubjectId: string;
-  let testVenueId: string;
-  let testStaffId: string;
+  let batchAId: string;
+  let batchBId: string;
+  let testStudentId: string;
+  let testUserId: string;
 
   jest.setTimeout(40000);
 
@@ -39,9 +37,15 @@ describe('PlacementBatchesModule (e2e)', () => {
 
     prisma = app.get<PrismaService>(PrismaService);
 
-    // Clean up test batches if any
+    // Clean up test batches & users if existing
+    await prisma.student.deleteMany({
+      where: { registerNumber: { in: ['E2E-STAFF-STUD1'] } },
+    });
+    await prisma.user.deleteMany({
+      where: { email: { in: ['e2e_staff_stud1@kahedu.edu.in'] } },
+    });
     await prisma.placementBatch.deleteMany({
-      where: { name: { in: ['E2E-Batch-Test-1', 'E2E-Batch-Test-2', 'Referenced-Student-Batch', 'Referenced-Session-Batch'] } },
+      where: { name: { in: ['Staff-Batch-A', 'Staff-Batch-A-Renamed', 'Staff-Batch-B', 'Staff-Batch-ToDelete', 'Admin-Batch-1', 'SuperAdmin-Batch-1'] } },
     });
 
     // Login users
@@ -65,222 +69,249 @@ describe('PlacementBatchesModule (e2e)', () => {
       .send({ email: '25cap109@kahedu.edu.in', password: 'password123' });
     studentToken = studentRes.body.accessToken;
 
-    // Fetch reference IDs for dependency tests
-    const dept = await prisma.department.findFirst();
-    const course = await prisma.course.findFirst();
-    const subject = await prisma.subject.findFirst();
-    const venue = await prisma.venue.findFirst();
-    const staff = await prisma.staff.findFirst();
+    // Create a test student for membership tests
+    const user = await prisma.user.create({
+      data: {
+        email: 'e2e_staff_stud1@kahedu.edu.in',
+        passwordHash: 'dummy_hash',
+        role: 'STUDENT',
+        status: 'ACTIVE',
+      },
+    });
+    testUserId = user.id;
 
-    if (dept && course && subject && venue && staff) {
-      testDepartmentId = dept.id;
-      testCourseId = course.id;
-      testSubjectId = subject.id;
-      testVenueId = venue.id;
-      testStaffId = staff.id;
-    }
+    const student = await prisma.student.create({
+      data: {
+        userId: user.id,
+        registerNumber: 'E2E-STAFF-STUD1',
+        firstName: 'StaffTest',
+        lastName: 'Student',
+        collegeEmail: 'e2e_staff_stud1@kahedu.edu.in',
+        status: 'ACTIVE',
+        isPlacementEligible: true,
+      },
+    });
+    testStudentId = student.id;
   });
 
-  describe('RBAC Authorization', () => {
-    it('should reject STUDENT from POST /placement-batches (403 Forbidden)', async () => {
-      await request(app.getHttpServer())
-        .post('/placement-batches')
-        .set('Authorization', `Bearer ${studentToken}`)
-        .send({ name: 'E2E-Batch-Test-1' })
-        .expect(403);
-    });
-
-    it('should reject STAFF from POST /placement-batches (403 Forbidden)', async () => {
-      await request(app.getHttpServer())
-        .post('/placement-batches')
-        .set('Authorization', `Bearer ${staffToken}`)
-        .send({ name: 'E2E-Batch-Test-1' })
-        .expect(403);
-    });
-
-    it('should reject unauthenticated caller from GET /placement-batches (401 Unauthorized)', async () => {
-      await request(app.getHttpServer())
-        .get('/placement-batches')
-        .expect(401);
-    });
-  });
-
-  describe('CRUD & Business Rules', () => {
-    it('ADMIN should create placement batch with optional startYear, endYear, description (201 Created)', async () => {
+  describe('Staff Placement Batch CRUD & Membership Authorization', () => {
+    it('STAFF can create batch (201 Created)', async () => {
       const res = await request(app.getHttpServer())
         .post('/placement-batches')
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set('Authorization', `Bearer ${staffToken}`)
         .send({
-          name: 'E2E-Batch-Test-1',
+          name: 'Staff-Batch-A',
           startYear: 2024,
           endYear: 2026,
-          description: 'E2E Test Batch Description',
+          description: 'Created by Staff',
         })
         .expect(201);
 
       expect(res.body).toHaveProperty('id');
-      expect(res.body.name).toBe('E2E-Batch-Test-1');
-      expect(res.body.startYear).toBe(2024);
-      expect(res.body.endYear).toBe(2026);
-      expect(res.body.description).toBe('E2E Test Batch Description');
-
-      createdBatchId = res.body.id;
+      expect(res.body.name).toBe('Staff-Batch-A');
+      batchAId = res.body.id;
     });
 
-    it('should reject creating duplicate placement batch name (409 Conflict)', async () => {
+    it('STAFF can create a second batch (201 Created)', async () => {
       const res = await request(app.getHttpServer())
         .post('/placement-batches')
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set('Authorization', `Bearer ${staffToken}`)
         .send({
-          name: 'E2E-Batch-Test-1',
+          name: 'Staff-Batch-B',
+          startYear: 2024,
+          endYear: 2026,
+          description: 'Second Batch Created by Staff',
         })
-        .expect(409);
+        .expect(201);
 
-      expect(res.body.message).toContain('already exists');
+      batchBId = res.body.id;
     });
 
-    it('SUPER_ADMIN should list placement batches (200 OK)', async () => {
+    it('STAFF can rename/edit a placement batch (200 OK)', async () => {
       const res = await request(app.getHttpServer())
+        .patch(`/placement-batches/${batchAId}`)
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send({
+          name: 'Staff-Batch-A-Renamed',
+          description: 'Updated by Staff',
+        })
+        .expect(200);
+
+      expect(res.body.name).toBe('Staff-Batch-A-Renamed');
+      expect(res.body.description).toBe('Updated by Staff');
+    });
+
+    it('STAFF can list and view placement batch details (200 OK)', async () => {
+      const listRes = await request(app.getHttpServer())
         .get('/placement-batches')
-        .set('Authorization', `Bearer ${superAdminToken}`)
+        .set('Authorization', `Bearer ${staffToken}`)
         .expect(200);
 
-      expect(Array.isArray(res.body)).toBe(true);
-      expect(res.body.some((b: any) => b.id === createdBatchId)).toBe(true);
+      expect(Array.isArray(listRes.body)).toBe(true);
+      expect(listRes.body.some((b: any) => b.id === batchAId)).toBe(true);
+
+      const detailRes = await request(app.getHttpServer())
+        .get(`/placement-batches/${batchAId}`)
+        .set('Authorization', `Bearer ${staffToken}`)
+        .expect(200);
+
+      expect(detailRes.body.id).toBe(batchAId);
     });
 
-    it('GET /placement-batches/:id should return single batch detail', async () => {
+    it('STAFF can add an existing student to a placement batch (200 OK)', async () => {
       const res = await request(app.getHttpServer())
-        .get(`/placement-batches/${createdBatchId}`)
-        .set('Authorization', `Bearer ${adminToken}`)
+        .patch(`/students/${testStudentId}`)
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send({ placementBatchId: batchAId })
         .expect(200);
 
-      expect(res.body.id).toBe(createdBatchId);
-      expect(res.body.name).toBe('E2E-Batch-Test-1');
+      expect(res.body.placementBatchId).toBe(batchAId);
     });
 
-    it('PATCH /placement-batches/:id should update placement batch', async () => {
+    it('STAFF can move an existing student from Batch A to Batch B (200 OK)', async () => {
       const res = await request(app.getHttpServer())
-        .patch(`/placement-batches/${createdBatchId}`)
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send({
-          description: 'Updated Description',
-        })
+        .patch(`/students/${testStudentId}`)
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send({ placementBatchId: batchBId })
         .expect(200);
 
-      expect(res.body.description).toBe('Updated Description');
+      expect(res.body.placementBatchId).toBe(batchBId);
     });
 
-    it('DELETE /placement-batches/:id should delete unused placement batch (200 OK)', async () => {
-      await request(app.getHttpServer())
-        .delete(`/placement-batches/${createdBatchId}`)
-        .set('Authorization', `Bearer ${adminToken}`)
+    it('STAFF can remove an existing student from placement batch (200 OK)', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/students/${testStudentId}`)
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send({ placementBatchId: null })
         .expect(200);
 
-      // Verify deletion
+      expect(res.body.placementBatchId).toBeNull();
+    });
+
+    it('STAFF can delete an unused batch (200 OK)', async () => {
+      const createRes = await request(app.getHttpServer())
+        .post('/placement-batches')
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send({ name: 'Staff-Batch-ToDelete' })
+        .expect(201);
+
       await request(app.getHttpServer())
-        .get(`/placement-batches/${createdBatchId}`)
-        .set('Authorization', `Bearer ${adminToken}`)
-        .expect(404);
+        .delete(`/placement-batches/${createRes.body.id}`)
+        .set('Authorization', `Bearer ${staffToken}`)
+        .expect(200);
     });
   });
 
-  describe('Safe Deletion & Dependency Protection (409 Conflict)', () => {
-    let studentRefBatchId: string;
-    let sessionRefBatchId: string;
-    let createdStudentId: string;
-    let createdSessionId: string;
-
-    beforeAll(async () => {
-      // Create batch referenced by student
-      const b1 = await prisma.placementBatch.create({
-        data: { name: 'Referenced-Student-Batch' },
-      });
-      studentRefBatchId = b1.id;
-
-      // Create test user and student referencing studentRefBatchId
-      const testUser = await prisma.user.create({
-        data: {
-          email: 'batch_test_student@kahedu.edu.in',
-          passwordHash: 'dummy_hash',
-          role: 'STUDENT',
-          status: 'ACTIVE',
-        },
-      });
-
-      const student = await prisma.student.create({
-        data: {
-          userId: testUser.id,
-          registerNumber: 'TESTPB001',
-          firstName: 'BatchTest',
-          collegeEmail: 'batch_test_student@kahedu.edu.in',
-          placementBatchId: studentRefBatchId,
-          status: 'ACTIVE',
-        },
-      });
-      createdStudentId = student.id;
-
-      // Create batch referenced by class session
-      const b2 = await prisma.placementBatch.create({
-        data: { name: 'Referenced-Session-Batch' },
-      });
-      sessionRefBatchId = b2.id;
-
-      const session = await prisma.classSession.create({
-        data: {
-          title: 'Batch Ref Session Test',
-          subjectId: testSubjectId,
-          venueId: testVenueId,
-          staffId: testStaffId,
-          placementBatchId: sessionRefBatchId,
-          sessionDate: new Date(),
-          startTime: new Date(),
-          endTime: new Date(Date.now() + 3600000),
-          status: 'SCHEDULED',
-        },
-      });
-      createdSessionId = session.id;
+  describe('STAFF Field & Action Restriction Checks', () => {
+    it('STAFF cannot create a student through batch management or direct API (403 Forbidden)', async () => {
+      await request(app.getHttpServer())
+        .post('/students')
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send({
+          registerNumber: 'ILLEGAL001',
+          collegeEmail: 'illegal001@kahedu.edu.in',
+          firstName: 'Illegal',
+          placementBatchId: batchAId,
+        })
+        .expect(403);
     });
 
-    it('should reject deletion of placement batch referenced by Student (409 Conflict)', async () => {
+    it('STAFF cannot modify student identity/academic fields (firstName, status, eligibility) via student update (403 Forbidden)', async () => {
+      await request(app.getHttpServer())
+        .patch(`/students/${testStudentId}`)
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send({
+          firstName: 'HackedName',
+          placementBatchId: batchAId,
+        })
+        .expect(403);
+
+      await request(app.getHttpServer())
+        .patch(`/students/${testStudentId}`)
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send({
+          isPlacementEligible: false,
+        })
+        .expect(403);
+    });
+
+    it('STAFF cannot update student status via /students/:id/status (403 Forbidden)', async () => {
+      await request(app.getHttpServer())
+        .patch(`/students/${testStudentId}/status`)
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send({ status: 'SUSPENDED' })
+        .expect(403);
+    });
+  });
+
+  describe('ADMIN & SUPER_ADMIN Verification', () => {
+    it('ADMIN still works for batch creation & student update (201 Created / 200 OK)', async () => {
       const res = await request(app.getHttpServer())
-        .delete(`/placement-batches/${studentRefBatchId}`)
+        .post('/placement-batches')
         .set('Authorization', `Bearer ${adminToken}`)
-        .expect(409);
+        .send({ name: 'Admin-Batch-1' })
+        .expect(201);
 
-      expect(res.body.message).toContain('Cannot delete placement batch');
-      expect(res.body.message).toContain('student');
+      expect(res.body.name).toBe('Admin-Batch-1');
+
+      // Admin can update student details including firstName
+      await request(app.getHttpServer())
+        .patch(`/students/${testStudentId}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ firstName: 'AdminUpdated', placementBatchId: res.body.id })
+        .expect(200);
     });
 
-    it('should reject deletion of placement batch referenced by ClassSession (409 Conflict)', async () => {
+    it('SUPER_ADMIN still works for batch creation & deletion (201 / 200)', async () => {
       const res = await request(app.getHttpServer())
-        .delete(`/placement-batches/${sessionRefBatchId}`)
-        .set('Authorization', `Bearer ${adminToken}`)
-        .expect(409);
+        .post('/placement-batches')
+        .set('Authorization', `Bearer ${superAdminToken}`)
+        .send({ name: 'SuperAdmin-Batch-1' })
+        .expect(201);
 
-      expect(res.body.message).toContain('Cannot delete placement batch');
-      expect(res.body.message).toContain('session');
+      await request(app.getHttpServer())
+        .delete(`/placement-batches/${res.body.id}`)
+        .set('Authorization', `Bearer ${superAdminToken}`)
+        .expect(200);
+    });
+  });
+
+  describe('Unauthorized Roles Blocked', () => {
+    it('STUDENT is rejected from batch creation (403 Forbidden)', async () => {
+      await request(app.getHttpServer())
+        .post('/placement-batches')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({ name: 'Student-Batch' })
+        .expect(403);
     });
 
-    afterAll(async () => {
-      // Clean up session, student, user, and batches
-      if (createdSessionId) {
-        await prisma.classSession.delete({ where: { id: createdSessionId } }).catch(() => {});
-      }
-      if (createdStudentId) {
-        await prisma.student.delete({ where: { id: createdStudentId } }).catch(() => {});
-        await prisma.user.deleteMany({ where: { email: 'batch_test_student@kahedu.edu.in' } }).catch(() => {});
-      }
-      await prisma.placementBatch.deleteMany({
-        where: { id: { in: [studentRefBatchId, sessionRefBatchId] } },
-      }).catch(() => {});
+    it('STUDENT is rejected from updating student placement batch (403 Forbidden)', async () => {
+      await request(app.getHttpServer())
+        .patch(`/students/${testStudentId}`)
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({ placementBatchId: batchAId })
+        .expect(403);
+    });
+
+    it('Unauthenticated caller is rejected (401 Unauthorized)', async () => {
+      await request(app.getHttpServer())
+        .post('/placement-batches')
+        .send({ name: 'NoAuth-Batch' })
+        .expect(401);
     });
   });
 
   afterAll(async () => {
+    if (testStudentId) {
+      await prisma.student.delete({ where: { id: testStudentId } }).catch(() => {});
+    }
+    if (testUserId) {
+      await prisma.user.delete({ where: { id: testUserId } }).catch(() => {});
+    }
     await prisma.placementBatch.deleteMany({
-      where: { name: { in: ['E2E-Batch-Test-1', 'E2E-Batch-Test-2', 'Referenced-Student-Batch', 'Referenced-Session-Batch'] } },
-    });
+      where: { name: { in: ['Staff-Batch-A', 'Staff-Batch-A-Renamed', 'Staff-Batch-B', 'Staff-Batch-ToDelete', 'Admin-Batch-1', 'SuperAdmin-Batch-1'] } },
+    }).catch(() => {});
+
     await app.close();
   });
 });

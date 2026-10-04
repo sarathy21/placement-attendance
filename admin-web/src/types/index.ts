@@ -263,7 +263,7 @@ export interface UpdateStudentInput {
   phoneNumber?: string;
   departmentId?: string;
   courseId?: string;
-  placementBatchId?: string;
+  placementBatchId?: string | null;
   isPlacementEligible?: boolean;
 }
 

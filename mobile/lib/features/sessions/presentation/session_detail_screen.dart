@@ -54,9 +54,16 @@ class SessionDetailScreen extends ConsumerWidget {
             orElse: () => null,
           );
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(18.0),
-            child: Column(
+          return RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(sessionDetailProvider(sessionId));
+              ref.invalidate(myAttendanceListProvider);
+            },
+            color: AppColors.primary,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(18.0),
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Session Header Card
@@ -467,11 +474,12 @@ class SessionDetailScreen extends ConsumerWidget {
                 ],
               ],
             ),
-          );
-        },
-      ),
-    );
-  }
+          ),
+        );
+      },
+    ),
+  );
+}
 
   Future<void> _confirmStartSession(BuildContext context, WidgetRef ref, String sessionId) async {
     final confirmed = await showDialog<bool>(
@@ -578,6 +586,9 @@ class SessionDetailScreen extends ConsumerWidget {
     try {
       final result = await action();
       if (result != null && context.mounted) {
+        ref.invalidate(sessionDetailProvider(sessionId));
+        ref.invalidate(studentSessionsListProvider(null));
+        ref.invalidate(staffSessionsListProvider(null));
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(successMsg),

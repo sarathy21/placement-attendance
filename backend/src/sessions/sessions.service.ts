@@ -679,8 +679,30 @@ export class SessionsService {
       ipAddress,
     });
 
-    // Post-Commit Notification Processing for Session Cancellation
-    if (status === SessionStatus.CANCELLED) {
+    // Post-Commit Notification Processing for Session Start & Cancellation
+    if (status === SessionStatus.IN_PROGRESS && session.status !== SessionStatus.IN_PROGRESS) {
+      const rosterEntries = await this.prisma.sessionStudent.findMany({
+        where: { sessionId: id, isEligible: true },
+        include: { student: { select: { userId: true } } },
+      });
+
+      const recipientUserIds = rosterEntries.map((r) => r.student.userId);
+      if (recipientUserIds.length > 0) {
+        const bodyText = session.description?.trim()
+          ? session.description.trim()
+          : `${session.title} has started.`;
+        await this.notificationsService.dispatchNotifications({
+          recipientUserIds,
+          title: 'Session Started',
+          body: bodyText,
+          payload: {
+            notificationType: NotificationType.SESSION_STARTED,
+            relatedEntityId: id,
+            sessionId: id,
+          },
+        });
+      }
+    } else if (status === SessionStatus.CANCELLED) {
       const rosterEntries = await this.prisma.sessionStudent.findMany({
         where: { sessionId: id, isEligible: true },
         include: { student: { select: { userId: true } } },

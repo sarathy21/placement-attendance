@@ -207,8 +207,9 @@ model Subject {
 model ClassSession {
   id               String          @id @default(uuid())
   title            String
-  subjectId        String
-  subject          Subject         @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  description      String?
+  subjectId        String?
+  subject          Subject?        @relation(fields: [subjectId], references: [id], onDelete: SetNull)
   venueId          String
   venue            Venue           @relation(fields: [venueId], references: [id], onDelete: Restrict)
   staffId          String

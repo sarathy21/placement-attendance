@@ -28,7 +28,7 @@ export class PlacementBatchesController {
   }
 
   @Post()
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.STAFF)
   @ApiOperation({ summary: 'Create new placement batch' })
   async create(
     @Body() dto: CreatePlacementBatchDto,
@@ -40,7 +40,7 @@ export class PlacementBatchesController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.STAFF)
   @ApiOperation({ summary: 'Update placement batch' })
   async update(
     @Param('id') id: string,
@@ -53,7 +53,7 @@ export class PlacementBatchesController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.STAFF)
   @ApiOperation({ summary: 'Delete unused placement batch' })
   async delete(
     @Param('id') id: string,

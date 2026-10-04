@@ -7,6 +7,11 @@ export class UpdateSessionDto {
   @IsString()
   title?: string;
 
+  @ApiPropertyOptional({ example: 'Aptitude & Technical Preparation', description: 'Session description' })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
   @ApiPropertyOptional({ description: 'Subject UUID' })
   @IsOptional()
   @IsUUID()

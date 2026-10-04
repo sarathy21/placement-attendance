@@ -177,9 +177,9 @@ export class AuthService {
     }
 
     if (user.role === UserRole.STUDENT && user.student) {
-      const updateData: { phoneNumber?: string; avatarUrl?: string } = {};
-      if (dto.phoneNumber !== undefined) updateData.phoneNumber = dto.phoneNumber;
-      if (dto.avatarUrl !== undefined) updateData.avatarUrl = dto.avatarUrl;
+      const updateData: { phoneNumber?: string | null; avatarUrl?: string | null } = {};
+      if (dto.phoneNumber !== undefined) updateData.phoneNumber = dto.phoneNumber?.trim() || null;
+      if (dto.avatarUrl !== undefined) updateData.avatarUrl = dto.avatarUrl?.trim() || null;
 
       const updatedStudent = await this.prisma.student.update({
         where: { id: user.student.id },
@@ -201,8 +201,8 @@ export class AuthService {
 
       return updatedStudent;
     } else if (user.role === UserRole.STAFF && user.staff) {
-      const updateData: { phoneNumber?: string } = {};
-      if (dto.phoneNumber !== undefined) updateData.phoneNumber = dto.phoneNumber;
+      const updateData: { phoneNumber?: string | null } = {};
+      if (dto.phoneNumber !== undefined) updateData.phoneNumber = dto.phoneNumber?.trim() || null;
 
       const updatedStaff = await this.prisma.staff.update({
         where: { id: user.staff.id },

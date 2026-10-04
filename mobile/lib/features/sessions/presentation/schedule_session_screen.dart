@@ -23,8 +23,8 @@ class ScheduleSessionScreen extends ConsumerStatefulWidget {
 class _ScheduleSessionScreenState extends ConsumerState<ScheduleSessionScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
 
-  String? _selectedSubjectId;
   String? _selectedVenueId;
   String? _selectedDepartmentId;
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
@@ -34,6 +34,7 @@ class _ScheduleSessionScreenState extends ConsumerState<ScheduleSessionScreen> {
   @override
   void dispose() {
     _titleController.dispose();
+    _descriptionController.dispose();
     super.dispose();
   }
 
@@ -79,10 +80,6 @@ class _ScheduleSessionScreenState extends ConsumerState<ScheduleSessionScreen> {
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_selectedSubjectId == null) {
-      _showErrorSnackBar('Please select a subject');
-      return;
-    }
     if (_selectedVenueId == null) {
       _showErrorSnackBar('Please select a venue');
       return;
@@ -113,11 +110,13 @@ class _ScheduleSessionScreenState extends ConsumerState<ScheduleSessionScreen> {
       _endTime.minute,
     );
 
+    final desc = _descriptionController.text.trim();
+
     final dto = CreateSessionDto(
       title: _titleController.text.trim(),
-      subjectId: _selectedSubjectId!,
+      description: desc.isNotEmpty ? desc : null,
       venueId: _selectedVenueId!,
-      departmentId: _selectedDepartmentId!,
+      departmentId: _selectedDepartmentId,
       sessionDate: dateStr,
       startTime: startDateTime.toIso8601String(),
       endTime: endDateTime.toIso8601String(),
@@ -159,7 +158,6 @@ class _ScheduleSessionScreenState extends ConsumerState<ScheduleSessionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final subjectsAsync = ref.watch(subjectsProvider);
     final venuesAsync = ref.watch(venuesProvider);
     final departmentsAsync = ref.watch(departmentsProvider);
     final createSessionState = ref.watch(createSessionNotifierProvider);
@@ -223,36 +221,20 @@ class _ScheduleSessionScreenState extends ConsumerState<ScheduleSessionScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Subject Dropdown
-              const Text(
-                'Subject / Training Module',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-              ),
-              const SizedBox(height: 6),
-              subjectsAsync.when(
-                loading: () => const LoadingState(message: 'Loading subjects...'),
-                error: (err, _) => Text('Error loading subjects: $err', style: const TextStyle(color: AppColors.statusAbsent)),
-                data: (subjects) {
-                  return DropdownButtonFormField<String>(
-                    initialValue: _selectedSubjectId,
-                    decoration: InputDecoration(
-                      hintText: 'Select Subject',
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppColors.border),
-                      ),
-                    ),
-                    items: subjects.map((sub) {
-                      return DropdownMenuItem<String>(
-                        value: sub.id,
-                        child: Text(sub.displayTitle, style: const TextStyle(fontSize: 14)),
-                      );
-                    }).toList(),
-                    onChanged: isSubmitting ? null : (val) => setState(() => _selectedSubjectId = val),
-                  );
-                },
+              // Description (Optional)
+              TextFormField(
+                controller: _descriptionController,
+                maxLines: 2,
+                decoration: InputDecoration(
+                  labelText: 'Description / Topics (Optional)',
+                  hintText: 'e.g. Technical aptitude assessment covering Array, String, and LinkedList questions.',
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
 

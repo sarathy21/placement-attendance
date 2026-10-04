@@ -132,13 +132,36 @@ describe('AuthModule (e2e)', () => {
         .patch('/auth/profile')
         .set('Authorization', `Bearer ${studentToken}`)
         .send({
-          phoneNumber: '+919999888877',
+          phoneNumber: '9999888877',
           avatarUrl: 'https://example.com/avatar-updated.jpg',
         })
         .expect(200);
 
-      expect(response.body.phoneNumber).toBe('+919999888877');
+      expect(response.body.phoneNumber).toBe('9999888877');
       expect(response.body.avatarUrl).toBe('https://example.com/avatar-updated.jpg');
+    });
+
+    it('should reject invalid phone numbers (+91 prefix, spaces, non-10 digits)', async () => {
+      // +91 rejected
+      await request(app.getHttpServer())
+        .patch('/auth/profile')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({ phoneNumber: '+919999888877' })
+        .expect(400);
+
+      // 9 digits rejected
+      await request(app.getHttpServer())
+        .patch('/auth/profile')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({ phoneNumber: '123456789' })
+        .expect(400);
+
+      // spaces rejected
+      await request(app.getHttpServer())
+        .patch('/auth/profile')
+        .set('Authorization', `Bearer ${studentToken}`)
+        .send({ phoneNumber: '98765 43210' })
+        .expect(400);
     });
 
     it('should reject attempt to modify academic identity fields via extra payload properties', async () => {

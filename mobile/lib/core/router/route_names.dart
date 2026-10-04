@@ -8,4 +8,5 @@ class RouteNames {
   static const String scheduleSession = '/sessions/schedule';
   static const String staffQrScanner = '/sessions/scan';
   static const String staffAttendanceRoster = '/sessions/attendance/:id';
+  static const String staffPlacementBatches = '/placement-batches';
 }

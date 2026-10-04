@@ -5,7 +5,6 @@ import { useQuery } from '@tanstack/react-query';
 import { departmentsService } from '@/services/departments.service';
 import { coursesService } from '@/services/courses.service';
 import { placementBatchesService } from '@/services/placement-batches.service';
-import { subjectsService } from '@/services/subjects.service';
 import { venuesService } from '@/services/venues.service';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatCardSkeleton } from '@/components/shared/loading-skeleton';
@@ -14,7 +13,6 @@ import {
   Building2,
   GraduationCap,
   Users,
-  BookOpen,
   MapPin,
   ArrowRight,
   Sparkles,
@@ -40,23 +38,17 @@ export default function DashboardPage() {
     queryFn: () => placementBatchesService.getAll(),
   });
 
-  const { data: subjects, isLoading: loadingSubjects } = useQuery({
-    queryKey: ['subjects'],
-    queryFn: () => subjectsService.getAll(),
-  });
-
   const { data: venues, isLoading: loadingVenues } = useQuery({
     queryKey: ['venues'],
     queryFn: () => venuesService.getAll(),
   });
 
-  const isLoadingAny = loadingDepts || loadingCourses || loadingBatches || loadingSubjects || loadingVenues;
+  const isLoadingAny = loadingDepts || loadingCourses || loadingBatches || loadingVenues;
 
   const quickLinks = [
     { name: 'Placement Batches', href: '/placement-batches', icon: Users, desc: 'Manage independent placement groups & training cohorts' },
     { name: 'Departments', href: '/departments', icon: Building2, desc: 'Manage university departments & academic codes' },
     { name: 'Courses', href: '/courses', icon: GraduationCap, desc: 'Configure degree programs & department mappings' },
-    { name: 'Subjects', href: '/subjects', icon: BookOpen, desc: 'Maintain placement modules & training subjects' },
     { name: 'Venues', href: '/venues', icon: MapPin, desc: 'Manage placement halls, labs, & seating capacity' },
   ];
 
@@ -115,13 +107,6 @@ export default function DashboardPage() {
               icon={GraduationCap}
               color="indigo"
               description="Degree programs"
-            />
-            <StatCard
-              title="Subjects"
-              value={subjects?.length ?? 0}
-              icon={BookOpen}
-              color="sky"
-              description="Training modules"
             />
             <StatCard
               title="Venues"

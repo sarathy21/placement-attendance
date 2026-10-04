@@ -7,10 +7,15 @@ export class CreateSessionDto {
   @IsNotEmpty()
   title: string;
 
-  @ApiProperty({ description: 'Subject/Training Module UUID' })
+  @ApiPropertyOptional({ example: 'Aptitude & Technical Preparation', description: 'Session description' })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiPropertyOptional({ description: 'Subject/Training Module UUID (Optional)' })
+  @IsOptional()
   @IsUUID()
-  @IsNotEmpty()
-  subjectId: string;
+  subjectId?: string;
 
   @ApiProperty({ description: 'Venue UUID' })
   @IsUUID()

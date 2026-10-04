@@ -50,10 +50,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final phone = _phoneController.text.trim();
     final avatar = _avatarUrlController.text.trim();
 
-    if (phone.isNotEmpty && phone.length < 7) {
+    final phoneRegex = RegExp(r'^[0-9]{10}$');
+    if (phone.isNotEmpty && !phoneRegex.hasMatch(phone)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter a valid phone number'),
+          content: Text('Phone number must be strictly a 10-digit number format (e.g. 9876543210)'),
           backgroundColor: AppColors.statusAbsent,
         ),
       );

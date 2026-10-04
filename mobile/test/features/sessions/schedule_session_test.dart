@@ -75,11 +75,12 @@ class MockSessionsRepo implements ISessionsRepository {
     return SessionModel(
       id: 'session-new-123',
       title: dto.title,
+      description: dto.description,
       sessionDate: DateTime.parse(dto.sessionDate),
       startTime: DateTime.parse(dto.startTime),
       endTime: DateTime.parse(dto.endTime),
       status: SessionLifecycleStatus.scheduled,
-      subject: SessionSubjectModel(id: dto.subjectId, code: 'MCA301', title: 'Aptitude'),
+      subject: dto.subjectId != null ? SessionSubjectModel(id: dto.subjectId!, code: 'MCA301', title: 'Aptitude') : null,
       venue: SessionVenueModel(id: dto.venueId, name: 'Auditorium A', building: 'Block 1'),
       staff: const SessionStaffModel(id: 'stf-01', firstName: 'Anita', lastName: 'Raman'),
     );
@@ -114,7 +115,7 @@ void main() {
 
       expect(find.text('Schedule New Session'), findsOneWidget);
       expect(find.text('Session Title'), findsOneWidget);
-      expect(find.text('Subject / Training Module'), findsOneWidget);
+      expect(find.text('Description / Topics (Optional)'), findsOneWidget);
       expect(find.text('Venue'), findsOneWidget);
       expect(find.text('Target Department'), findsOneWidget);
       expect(find.text('Session Date'), findsOneWidget);
@@ -133,12 +134,12 @@ void main() {
       await tester.pumpWidget(createTestWidget(mockRepo));
       await tester.pumpAndSettle();
 
-      // Tap Subject Dropdown
+      // Tap Venue Dropdown (now 1st dropdown)
       await tester.tap(find.byType(DropdownButtonFormField<String>).at(0), warnIfMissed: false);
       await tester.pumpAndSettle();
 
-      expect(find.text('MCA301 - Placement Aptitude'), findsOneWidget);
-      expect(find.text('MCA302 - Coding Practice'), findsOneWidget);
+      expect(find.text('Auditorium A (Block 1)'), findsOneWidget);
+      expect(find.text('Lab 3 (Block 2)'), findsOneWidget);
     });
 
     testWidgets('3. Empty title submission triggers validation error', (WidgetTester tester) async {
@@ -158,7 +159,7 @@ void main() {
       expect(mockRepo.createSessionCalled, isFalse);
     });
 
-    testWidgets('4. Unselected dropdown triggers validation SnackBar', (WidgetTester tester) async {
+    testWidgets('4. Unselected venue dropdown triggers validation SnackBar', (WidgetTester tester) async {
       tester.view.physicalSize = const Size(800, 1200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -172,7 +173,7 @@ void main() {
       await tester.tap(find.text('Schedule Session'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Please select a subject'), findsOneWidget);
+      expect(find.text('Please select a venue'), findsOneWidget);
       expect(mockRepo.createSessionCalled, isFalse);
     });
 
@@ -236,20 +237,14 @@ void main() {
       // Enter title
       await tester.enterText(find.byType(TextFormField).first, 'Java Deep Dive Mock Test');
 
-      // Select Subject
+      // Select Venue (at index 0)
       await tester.tap(find.byType(DropdownButtonFormField<String>).at(0));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('MCA301 - Placement Aptitude').last);
-      await tester.pumpAndSettle();
-
-      // Select Venue
-      await tester.tap(find.byType(DropdownButtonFormField<String>).at(1));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Auditorium A (Block 1)').last);
       await tester.pumpAndSettle();
 
-      // Select Department
-      await tester.tap(find.byType(DropdownButtonFormField<String>).at(2));
+      // Select Department (at index 1)
+      await tester.tap(find.byType(DropdownButtonFormField<String>).at(1));
       await tester.pumpAndSettle();
       await tester.tap(find.text('MCA - Master of Computer Applications').last);
       await tester.pumpAndSettle();
@@ -275,20 +270,14 @@ void main() {
       // Enter title
       await tester.enterText(find.byType(TextFormField).first, 'Java Deep Dive Mock Test');
 
-      // Select Subject
-      await tester.tap(find.byType(DropdownButtonFormField<String>).at(0));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('MCA301 - Placement Aptitude').last);
-      await tester.pumpAndSettle();
-
       // Select Venue
-      await tester.tap(find.byType(DropdownButtonFormField<String>).at(1));
+      await tester.tap(find.byType(DropdownButtonFormField<String>).at(0));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Auditorium A (Block 1)').last);
       await tester.pumpAndSettle();
 
       // Select Department
-      await tester.tap(find.byType(DropdownButtonFormField<String>).at(2));
+      await tester.tap(find.byType(DropdownButtonFormField<String>).at(1));
       await tester.pumpAndSettle();
       await tester.tap(find.text('MCA - Master of Computer Applications').last);
       await tester.pumpAndSettle();
@@ -300,7 +289,6 @@ void main() {
       expect(mockRepo.createSessionCalled, isTrue);
       expect(mockRepo.lastCreatedDto, isNotNull);
       expect(mockRepo.lastCreatedDto!.title, equals('Java Deep Dive Mock Test'));
-      expect(mockRepo.lastCreatedDto!.subjectId, equals('sub-01'));
       expect(mockRepo.lastCreatedDto!.venueId, equals('ven-01'));
       expect(mockRepo.lastCreatedDto!.departmentId, equals('dept-01'));
       expect(find.text('Session scheduled successfully!'), findsOneWidget);
@@ -322,15 +310,10 @@ void main() {
 
       await tester.tap(find.byType(DropdownButtonFormField<String>).at(0));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('MCA301 - Placement Aptitude').last);
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byType(DropdownButtonFormField<String>).at(1));
-      await tester.pumpAndSettle();
       await tester.tap(find.text('Auditorium A (Block 1)').last);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(DropdownButtonFormField<String>).at(2));
+      await tester.tap(find.byType(DropdownButtonFormField<String>).at(1));
       await tester.pumpAndSettle();
       await tester.tap(find.text('MCA - Master of Computer Applications').last);
       await tester.pumpAndSettle();
@@ -357,15 +340,10 @@ void main() {
 
       await tester.tap(find.byType(DropdownButtonFormField<String>).at(0));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('MCA301 - Placement Aptitude').last);
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byType(DropdownButtonFormField<String>).at(1));
-      await tester.pumpAndSettle();
       await tester.tap(find.text('Auditorium A (Block 1)').last);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(DropdownButtonFormField<String>).at(2));
+      await tester.tap(find.byType(DropdownButtonFormField<String>).at(1));
       await tester.pumpAndSettle();
       await tester.tap(find.text('MCA - Master of Computer Applications').last);
       await tester.pumpAndSettle();
