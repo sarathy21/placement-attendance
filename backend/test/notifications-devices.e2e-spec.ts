@@ -392,12 +392,12 @@ describe('Notifications & Devices (e2e)', () => {
     it('21. Session Creation -> SESSION_SCHEDULED notification dispatched to SessionStudent roster', async () => {
       const futureDate = new Date();
       futureDate.setDate(futureDate.getDate() + 5);
-      const sessionDateStr = futureDate.toISOString().split('T')[0];
 
       const start = new Date(futureDate);
       start.setHours(10, 0, 0, 0);
       const end = new Date(futureDate);
       end.setHours(11, 0, 0, 0);
+      const sessionDateStr = start.toLocaleDateString('sv', { timeZone: 'Asia/Kolkata' });
 
       const createRes = await request(app.getHttpServer())
         .post('/sessions')
@@ -442,12 +442,12 @@ describe('Notifications & Devices (e2e)', () => {
     it('22 & Test D. Session Update -> SESSION_UPDATED dispatched to committed SessionStudent snapshot', async () => {
       const futureDate = new Date();
       futureDate.setDate(futureDate.getDate() + 6);
-      const sessionDateStr = futureDate.toISOString().split('T')[0];
 
       const start = new Date(futureDate);
       start.setHours(14, 0, 0, 0);
       const end = new Date(futureDate);
       end.setHours(15, 0, 0, 0);
+      const sessionDateStr = start.toLocaleDateString('sv', { timeZone: 'Asia/Kolkata' });
 
       await request(app.getHttpServer())
         .patch(`/sessions/${createdSessionId}`)

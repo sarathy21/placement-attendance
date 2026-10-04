@@ -13,6 +13,8 @@ import { AttendanceModule } from './attendance/attendance.module';
 import { FcmModule } from './fcm/fcm.module';
 import { DevicesModule } from './devices/devices.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { PlacementDrivesModule } from './placement-drives/placement-drives.module';
+import { StaffModule } from './staff/staff.module';
 
 @Module({
   imports: [
@@ -20,6 +22,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     AuditLogModule,
     AuthModule,
     StudentsModule,
+    StaffModule,
     AcademicModule,
     VenuesModule,
     SubjectsModule,
@@ -28,6 +31,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     FcmModule,
     DevicesModule,
     NotificationsModule,
+    PlacementDrivesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

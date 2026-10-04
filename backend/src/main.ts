@@ -15,6 +15,17 @@ async function bootstrap() {
     }),
   );
 
+  // Configure CORS securely
+  const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS
+    ? process.env.CORS_ALLOWED_ORIGINS.split(',')
+    : ['http://localhost:3000', 'http://localhost:8080', 'http://localhost:5173']; // default dev origins
+
+  app.enableCors({
+    origin: allowedOrigins,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
+
   // OpenAPI Swagger Documentation Setup
   const config = new DocumentBuilder()
     .setTitle('Placement Attendance System API')
@@ -26,7 +37,7 @@ async function bootstrap() {
   SwaggerModule.setup('api/docs', app, document);
 
   const port = process.env.PORT ?? 3000;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   console.log(`Application is running on: http://localhost:${port}`);
   console.log(`Swagger documentation available at: http://localhost:${port}/api/docs`);
 }
