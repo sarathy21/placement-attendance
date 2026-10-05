@@ -239,6 +239,37 @@ describe('Phase 4: Academic Management & Session Scheduling (e2e)', () => {
       expect(rosterCountInDb).toBe(res.body.rosterCount);
     });
 
+    it('should allow STAFF to schedule placement session with placementBatchId, description, and omitted subjectId/departmentId/courseId', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/sessions')
+        .set('Authorization', `Bearer ${staffToken}`)
+        .send({
+          title: 'TCS Placement Aptitude Session',
+          description: 'Aptitude & Logical Reasoning Mock Test',
+          venueId,
+          placementBatchId: batchId,
+          sessionDate: '2026-10-18',
+          startTime: '2026-10-18T14:00:00+05:30',
+          endTime: '2026-10-18T16:00:00+05:30',
+        })
+        .expect(201);
+
+      expect(res.body.title).toBe('TCS Placement Aptitude Session');
+      expect(res.body.description).toBe('Aptitude & Logical Reasoning Mock Test');
+      expect(res.body.subjectId).toBeNull();
+      expect(res.body.departmentId).toBeNull();
+      expect(res.body.courseId).toBeNull();
+      expect(res.body.placementBatchId).toBe(batchId);
+      expect(res.body.status).toBe('SCHEDULED');
+      expect(res.body.staffId).toBe(staffId);
+      expect(res.body.rosterCount).toBeGreaterThanOrEqual(1);
+
+      const rosterCountInDb = await prisma.sessionStudent.count({
+        where: { sessionId: res.body.id },
+      });
+      expect(rosterCountInDb).toBe(res.body.rosterCount);
+    });
+
     it('should prevent overlapping active sessions for the same venue', async () => {
       await request(app.getHttpServer())
         .post('/sessions')

@@ -189,12 +189,16 @@ export class SessionsService {
 
     // 3. Reference Data Verification (Subject & Venue)
     const [subject, venue] = await Promise.all([
-      this.prisma.subject.findUnique({ where: { id: dto.subjectId } }),
+      dto.subjectId ? this.prisma.subject.findUnique({ where: { id: dto.subjectId } }) : Promise.resolve(null),
       this.prisma.venue.findUnique({ where: { id: dto.venueId } }),
     ]);
 
-    if (!subject) throw new BadRequestException(`Subject with ID '${dto.subjectId}' not found`);
-    if (!venue) throw new BadRequestException(`Venue with ID '${dto.venueId}' not found`);
+    if (dto.subjectId && !subject) {
+      throw new BadRequestException(`Subject with ID '${dto.subjectId}' not found`);
+    }
+    if (!venue) {
+      throw new BadRequestException(`Venue with ID '${dto.venueId}' not found`);
+    }
 
     // 4. Target Scope Verification
     await this.validateTargetScope(dto.departmentId, dto.courseId, dto.placementBatchId);
@@ -220,7 +224,8 @@ export class SessionsService {
       const session = await tx.classSession.create({
         data: {
           title: dto.title.trim(),
-          subjectId: dto.subjectId,
+          description: dto.description?.trim() || null,
+          subjectId: dto.subjectId ?? null,
           venueId: dto.venueId,
           staffId: conductingStaffId,
           departmentId: dto.departmentId || null,
