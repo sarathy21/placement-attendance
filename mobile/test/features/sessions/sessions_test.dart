@@ -85,7 +85,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('No Sessions Today'), findsOneWidget);
+      expect(find.text('No sessions today'), findsOneWidget);
     });
 
     testWidgets('3. Session list renders session cards', (WidgetTester tester) async {

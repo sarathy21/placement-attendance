@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/errors/failures.dart';
 import '../../../core/widgets/widgets.dart';
+import '../../placement_batches/presentation/providers/placement_batches_provider.dart';
 import '../data/models/create_session_dto.dart';
 import 'providers/sessions_provider.dart';
 
@@ -26,7 +27,7 @@ class _ScheduleSessionScreenState extends ConsumerState<ScheduleSessionScreen> {
   final _descriptionController = TextEditingController();
 
   String? _selectedVenueId;
-  String? _selectedDepartmentId;
+  String? _selectedPlacementBatchId;
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
   late TimeOfDay _startTime = widget.initialStartTime ?? const TimeOfDay(hour: 9, minute: 0);
   late TimeOfDay _endTime = widget.initialEndTime ?? const TimeOfDay(hour: 11, minute: 0);
@@ -80,6 +81,11 @@ class _ScheduleSessionScreenState extends ConsumerState<ScheduleSessionScreen> {
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (_selectedPlacementBatchId == null) {
+      _showErrorSnackBar('Please select a placement batch');
+      return;
+    }
+
     if (_selectedVenueId == null) {
       _showErrorSnackBar('Please select a venue');
       return;
@@ -116,7 +122,7 @@ class _ScheduleSessionScreenState extends ConsumerState<ScheduleSessionScreen> {
       title: _titleController.text.trim(),
       description: desc.isNotEmpty ? desc : null,
       venueId: _selectedVenueId!,
-      departmentId: _selectedDepartmentId,
+      placementBatchId: _selectedPlacementBatchId,
       sessionDate: dateStr,
       startTime: startDateTime.toIso8601String(),
       endTime: endDateTime.toIso8601String(),
@@ -159,7 +165,7 @@ class _ScheduleSessionScreenState extends ConsumerState<ScheduleSessionScreen> {
   @override
   Widget build(BuildContext context) {
     final venuesAsync = ref.watch(venuesProvider);
-    final departmentsAsync = ref.watch(departmentsProvider);
+    final placementBatchesAsync = ref.watch(placementBatchesListProvider);
     final createSessionState = ref.watch(createSessionNotifierProvider);
     final isSubmitting = createSessionState.isLoading;
 
@@ -196,11 +202,44 @@ class _ScheduleSessionScreenState extends ConsumerState<ScheduleSessionScreen> {
               ),
               const SizedBox(height: 20),
 
+              // Placement Batch Dropdown
+              const Text(
+                'Target Placement Batch *',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              ),
+              const SizedBox(height: 6),
+              placementBatchesAsync.when(
+                loading: () => const LoadingState(message: 'Loading placement batches...'),
+                error: (err, _) => Text('Error loading placement batches: $err', style: const TextStyle(color: AppColors.statusAbsent)),
+                data: (batches) {
+                  return DropdownButtonFormField<String>(
+                    initialValue: _selectedPlacementBatchId,
+                    decoration: InputDecoration(
+                      hintText: 'Select Placement Batch',
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.border),
+                      ),
+                    ),
+                    items: batches.map((batch) {
+                      return DropdownMenuItem<String>(
+                        value: batch.id,
+                        child: Text(batch.name, style: const TextStyle(fontSize: 14)),
+                      );
+                    }).toList(),
+                    onChanged: isSubmitting ? null : (val) => setState(() => _selectedPlacementBatchId = val),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+
               // Session Title
               TextFormField(
                 controller: _titleController,
                 decoration: InputDecoration(
-                  labelText: 'Session Title',
+                  labelText: 'Session Title *',
                   hintText: 'e.g. Java Collections & Data Structures Mock Test',
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -240,7 +279,7 @@ class _ScheduleSessionScreenState extends ConsumerState<ScheduleSessionScreen> {
 
               // Venue Dropdown
               const Text(
-                'Venue',
+                'Venue *',
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
               ),
               const SizedBox(height: 6),
@@ -266,39 +305,6 @@ class _ScheduleSessionScreenState extends ConsumerState<ScheduleSessionScreen> {
                       );
                     }).toList(),
                     onChanged: isSubmitting ? null : (val) => setState(() => _selectedVenueId = val),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Department Dropdown
-              const Text(
-                'Target Department',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-              ),
-              const SizedBox(height: 6),
-              departmentsAsync.when(
-                loading: () => const LoadingState(message: 'Loading departments...'),
-                error: (err, _) => Text('Error loading departments: $err', style: const TextStyle(color: AppColors.statusAbsent)),
-                data: (departments) {
-                  return DropdownButtonFormField<String>(
-                    initialValue: _selectedDepartmentId,
-                    decoration: InputDecoration(
-                      hintText: 'Select Department',
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppColors.border),
-                      ),
-                    ),
-                    items: departments.map((dept) {
-                      return DropdownMenuItem<String>(
-                        value: dept.id,
-                        child: Text(dept.displayName, style: const TextStyle(fontSize: 14)),
-                      );
-                    }).toList(),
-                    onChanged: isSubmitting ? null : (val) => setState(() => _selectedDepartmentId = val),
                   );
                 },
               ),

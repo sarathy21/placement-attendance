@@ -6,6 +6,7 @@ import { placementBatchesService } from '@/services/placement-batches.service';
 import { PlacementBatch } from '@/types';
 import { PlacementBatchModal } from '@/components/forms/placement-batch-modal';
 import { PlacementBatchDetailModal } from '@/components/forms/placement-batch-detail-modal';
+import { Dialog } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -25,6 +26,7 @@ export default function PlacementBatchesPage() {
 
   const [detailBatch, setDetailBatch] = useState<PlacementBatch | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [conflictBatch, setConflictBatch] = useState<{ batch: PlacementBatch; message: string; memberCount?: number } | null>(null);
 
   const { data: batches = [], isLoading, isError, error } = useQuery({
     queryKey: ['placement-batches'],
@@ -38,9 +40,27 @@ export default function PlacementBatchesPage() {
       showToast('success', 'Placement Batch Deleted', data.message || 'Placement batch deleted successfully.');
       setDeletingBatchId(null);
     },
-    onError: (err: Error & { response?: { data?: { message?: string | string[] } } }) => {
-      const msg = err.response?.data?.message || err.message || 'Failed to delete placement batch';
-      showToast('error', 'Cannot Delete Placement Batch', Array.isArray(msg) ? msg.join(', ') : msg);
+    onError: (err: Error & { response?: { data?: { message?: string | string[]; code?: string; details?: { memberCount?: number } } } }, batchId: string) => {
+      const data = err.response?.data;
+      const msg = Array.isArray(data?.message)
+        ? data?.message.join(', ')
+        : data?.message || err.message || 'Failed to delete placement batch';
+
+      const targetBatch = batches.find((b) => b.id === batchId);
+
+      if (
+        data?.code === 'PLACEMENT_BATCH_HAS_MEMBERS' ||
+        data?.code === 'PLACEMENT_BATCH_HAS_SESSIONS' ||
+        (targetBatch && (targetBatch._count?.students ?? 0) > 0)
+      ) {
+        setConflictBatch({
+          batch: targetBatch || ({ id: batchId, name: 'Batch' } as PlacementBatch),
+          message: msg,
+          memberCount: data?.details?.memberCount ?? targetBatch?._count?.students ?? 0,
+        });
+      } else {
+        showToast('error', 'Cannot Delete Placement Batch', msg);
+      }
       setDeletingBatchId(null);
     },
   });
@@ -56,6 +76,15 @@ export default function PlacementBatchesPage() {
   };
 
   const handleDelete = (batch: PlacementBatch) => {
+    if ((batch._count?.students ?? 0) > 0) {
+      setConflictBatch({
+        batch,
+        message: `Cannot delete placement batch '${batch.name}'. This batch is currently assigned to ${batch._count?.students} student${batch._count?.students === 1 ? '' : 's'}. Remove or move the students to another batch before deleting the batch.`,
+        memberCount: batch._count?.students,
+      });
+      return;
+    }
+
     if (confirm(`Are you sure you want to delete placement batch '${batch.name}'?`)) {
       setDeletingBatchId(batch.id);
       deleteMutation.mutate(batch.id);
@@ -212,6 +241,52 @@ export default function PlacementBatchesPage() {
         onClose={() => setIsDetailModalOpen(false)}
         batch={detailBatch}
       />
+
+      {/* Deletion Conflict Dialog */}
+      <Dialog
+        isOpen={!!conflictBatch}
+        onClose={() => setConflictBatch(null)}
+        title="Cannot Delete Placement Batch"
+        description="This placement batch has dependent student or session records."
+      >
+        <div className="space-y-4">
+          <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-sm">
+            <p className="font-semibold text-amber-950 mb-1">
+              Active Member Conflict
+            </p>
+            <p>{conflictBatch?.message}</p>
+            {conflictBatch?.memberCount !== undefined && conflictBatch.memberCount > 0 && (
+              <div className="mt-2 text-xs font-semibold text-amber-800">
+                Affected Student Count: <span className="font-bold">{conflictBatch.memberCount}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setConflictBatch(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                if (conflictBatch?.batch) {
+                  setDetailBatch(conflictBatch.batch);
+                  setIsDetailModalOpen(true);
+                }
+                setConflictBatch(null);
+              }}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>Manage Members</span>
+            </Button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 }

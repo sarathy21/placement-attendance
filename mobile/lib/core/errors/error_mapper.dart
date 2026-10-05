@@ -23,20 +23,22 @@ class ErrorMapper {
           }
         }
 
+        final cleanMsg = _sanitize(serverMsg);
+
         switch (statusCode) {
           case 400:
-            return ValidationFailure(serverMsg.isNotEmpty ? serverMsg : 'Bad Request (400)', statusCode);
+            return ValidationFailure(cleanMsg.isNotEmpty ? cleanMsg : 'Invalid request details provided.', statusCode);
           case 401:
-            return UnauthorizedFailure(serverMsg.isNotEmpty ? serverMsg : 'Unauthorized Access (401)', statusCode);
+            return UnauthorizedFailure(cleanMsg.isNotEmpty ? cleanMsg : 'Your session has expired. Please sign in again.', statusCode);
           case 403:
-            return ForbiddenFailure(serverMsg.isNotEmpty ? serverMsg : 'Access Forbidden (403)', statusCode);
+            return ForbiddenFailure(cleanMsg.isNotEmpty ? cleanMsg : 'You do not have permission to perform this action.', statusCode);
           case 404:
-            return NotFoundFailure(serverMsg.isNotEmpty ? serverMsg : 'Resource Not Found (404)', statusCode);
+            return NotFoundFailure(cleanMsg.isNotEmpty ? cleanMsg : 'The requested item was not found.', statusCode);
           case 409:
-            return ConflictFailure(serverMsg.isNotEmpty ? serverMsg : 'Conflict State (409)', statusCode);
+            return ConflictFailure(cleanMsg.isNotEmpty ? cleanMsg : 'Action could not be completed due to a data conflict.', statusCode);
           case 500:
           default:
-            return ServerFailure(serverMsg.isNotEmpty ? serverMsg : 'Server Error ($statusCode)', statusCode);
+            return ServerFailure(cleanMsg.isNotEmpty ? cleanMsg : 'An unexpected server error occurred. Please try again later.', statusCode);
         }
 
       case DioExceptionType.cancel:
@@ -44,7 +46,22 @@ class ErrorMapper {
 
       case DioExceptionType.unknown:
       default:
-        return NetworkFailure(exception.message ?? 'An unexpected network error occurred.');
+        return NetworkFailure(_sanitize(exception.message ?? 'An unexpected network connection error occurred.'));
     }
+  }
+
+  static String _sanitize(String msg) {
+    if (msg.isEmpty) return '';
+    final lower = msg.toLowerCase();
+    if (lower.contains('prisma') ||
+        lower.contains('dioexception') ||
+        lower.contains('httpexception') ||
+        lower.contains('foreign key') ||
+        lower.contains('unique constraint') ||
+        lower.contains('p2002') ||
+        lower.contains('p2003')) {
+      return 'The requested operation could not be completed due to a server constraint conflict.';
+    }
+    return msg;
   }
 }

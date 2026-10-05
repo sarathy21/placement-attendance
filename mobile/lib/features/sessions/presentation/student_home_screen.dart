@@ -302,7 +302,83 @@ class _StudentDashboardView extends ConsumerWidget {
                 ),
                 const SizedBox(height: 24),
 
-                // C. NEXT PLACEMENT DRIVE
+                // C. MY SESSIONS (Visually prominent main section)
+                SectionHeader(
+                  title: 'My Sessions',
+                  actionLabel: 'View All Sessions',
+                  onAction: () => onNavigateToTab(1),
+                ),
+                const SizedBox(height: 8),
+                ref.watch(studentSessionsListProvider(null)).when(
+                      loading: () => const LoadingState(message: 'Loading sessions...'),
+                      error: (err, stack) => const EmptyState(
+                        icon: Icons.event_note_outlined,
+                        title: 'No Sessions Scheduled',
+                        description: 'Enrolled placement training and assessment sessions will appear here.',
+                      ),
+                      data: (sessions) {
+                        final activeOrUpcoming = sessions
+                            .where((s) =>
+                                s.status == SessionLifecycleStatus.inProgress ||
+                                s.status == SessionLifecycleStatus.scheduled)
+                            .toList();
+
+                        if (activeOrUpcoming.isEmpty) {
+                          return const EmptyState(
+                            icon: Icons.event_note_outlined,
+                            title: 'No Active Sessions',
+                            description: 'You have no active or upcoming sessions scheduled right now.',
+                          );
+                        }
+
+                        // Prefer today's active/incoming sessions, then nearest scheduled sessions
+                        final now = DateTime.now();
+                        bool isToday(DateTime dt) => dt.year == now.year && dt.month == now.month && dt.day == now.day;
+
+                        activeOrUpcoming.sort((a, b) {
+                          final aActiveToday = a.status == SessionLifecycleStatus.inProgress && isToday(a.startTime);
+                          final bActiveToday = b.status == SessionLifecycleStatus.inProgress && isToday(b.startTime);
+                          if (aActiveToday && !bActiveToday) return -1;
+                          if (!aActiveToday && bActiveToday) return 1;
+
+                          final aSchedToday = a.status == SessionLifecycleStatus.scheduled && isToday(a.startTime);
+                          final bSchedToday = b.status == SessionLifecycleStatus.scheduled && isToday(b.startTime);
+                          if (aSchedToday && !bSchedToday) return -1;
+                          if (!aSchedToday && bSchedToday) return 1;
+
+                          return a.startTime.compareTo(b.startTime);
+                        });
+
+                        // Take top 2 most relevant sessions
+                        final displaySessions = activeOrUpcoming.take(2).toList();
+
+                        return Column(
+                          children: displaySessions.map((session) {
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 10.0),
+                              child: SessionCard(
+                                title: session.title,
+                                date: session.formattedDate,
+                                timeRange: session.formattedTime,
+                                venue: session.displayVenue,
+                                staffName: session.displayStaff,
+                                status: session.status.name.toUpperCase(),
+                                onTap: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => SessionDetailScreen(sessionId: session.id),
+                                    ),
+                                  );
+                                },
+                              ),
+                            );
+                          }).toList(),
+                        );
+                      },
+                    ),
+                const SizedBox(height: 24),
+
+                // D. NEXT PLACEMENT DRIVE
                 SectionHeader(
                   title: 'Next Placement Drive',
                   actionLabel: 'View All',
@@ -343,55 +419,6 @@ class _StudentDashboardView extends ConsumerWidget {
                     );
                   },
                 ),
-                const SizedBox(height: 24),
-
-                // D. NEXT SESSION
-                SectionHeader(
-                  title: 'Next Session',
-                  actionLabel: 'View All',
-                  onAction: () => onNavigateToTab(1),
-                ),
-                const SizedBox(height: 8),
-                ref.watch(studentSessionsListProvider(null)).when(
-                      loading: () => const LoadingState(message: 'Loading next session...'),
-                      error: (err, stack) => const EmptyState(
-                        icon: Icons.event_note_outlined,
-                        title: 'No Sessions Scheduled Today',
-                        description: 'Enrolled academic and placement training sessions will be displayed here.',
-                      ),
-                      data: (sessions) {
-                        final active = sessions
-                            .where((s) =>
-                                s.status == SessionLifecycleStatus.inProgress ||
-                                s.status == SessionLifecycleStatus.scheduled)
-                            .toList();
-
-                        if (active.isEmpty) {
-                          return const EmptyState(
-                            icon: Icons.event_note_outlined,
-                            title: 'No Sessions Scheduled Today',
-                            description: 'Enrolled academic and placement training sessions will be displayed here.',
-                          );
-                        }
-
-                        final nextSession = active.first;
-                        return SessionCard(
-                          title: nextSession.title,
-                          date: nextSession.formattedDate,
-                          timeRange: nextSession.formattedTime,
-                          venue: nextSession.displayVenue,
-                          staffName: nextSession.displayStaff,
-                          status: nextSession.status.name.toUpperCase(),
-                          onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => SessionDetailScreen(sessionId: nextSession.id),
-                              ),
-                            );
-                          },
-                        );
-                      },
-                    ),
                 const SizedBox(height: 24),
 
                 // E. TODAY SUMMARY

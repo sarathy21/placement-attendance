@@ -128,14 +128,14 @@ void main() {
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();
 
-      expect(find.text('No Sessions Scheduled Today'), findsOneWidget);
+      expect(find.text('No Active Sessions'), findsOneWidget);
     });
 
     testWidgets('5. Quick actions grid elements are visible', (WidgetTester tester) async {
       await tester.pumpWidget(createTestWidget());
       await tester.pumpAndSettle();
 
-      expect(find.text('My Sessions'), findsOneWidget);
+      expect(find.text('My Sessions'), findsWidgets);
       expect(find.text('Placement Calendar'), findsOneWidget);
       expect(find.text('Notifications'), findsWidgets);
       expect(find.text('My Profile'), findsOneWidget);
