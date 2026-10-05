@@ -189,4 +189,33 @@ export class AcademicService {
 
     return updated;
   }
+
+  async deleteDepartment(id: string, operatorUserId: string, ipAddress?: string) {
+    const dept = await this.findOneDepartment(id);
+
+    const studentCount = await this.prisma.student.count({ where: { departmentId: id } });
+    const staffCount = await this.prisma.staff.count({ where: { departmentId: id } });
+    const sessionCount = await this.prisma.classSession.count({ where: { departmentId: id } });
+
+    if (studentCount > 0 || staffCount > 0 || sessionCount > 0) {
+      throw new ConflictException({
+        code: 'DEPARTMENT_HAS_DEPENDENT_RECORDS',
+        message: `Cannot delete department '${dept.name}'.\n\nThis department is currently used by:\n• ${studentCount} student${studentCount === 1 ? '' : 's'}\n• ${staffCount} staff member${staffCount === 1 ? '' : 's'}\n• ${sessionCount} session${sessionCount === 1 ? '' : 's'}\n\nRemove or reassign the dependent records first.`,
+        details: { studentCount, staffCount, sessionCount },
+      });
+    }
+
+    await this.prisma.department.delete({ where: { id } });
+
+    await this.auditLogService.log({
+      userId: operatorUserId,
+      action: 'DEPARTMENT_DELETED',
+      entity: 'Department',
+      entityId: id,
+      details: { code: dept.code, name: dept.name },
+      ipAddress,
+    });
+
+    return { message: `Department '${dept.name}' deleted successfully` };
+  }
 }

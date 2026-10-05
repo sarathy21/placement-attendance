@@ -117,10 +117,20 @@ export class PlacementBatchesService {
     const studentCount = await this.prisma.student.count({ where: { placementBatchId: id } });
     const sessionCount = await this.prisma.classSession.count({ where: { placementBatchId: id } });
 
-    if (studentCount > 0 || sessionCount > 0) {
-      throw new ConflictException(
-        `Cannot delete placement batch '${pb.name}' as it is referenced by existing students (${studentCount}) or class sessions (${sessionCount})`,
-      );
+    if (studentCount > 0) {
+      throw new ConflictException({
+        code: 'PLACEMENT_BATCH_HAS_MEMBERS',
+        message: `Cannot delete placement batch '${pb.name}'. This batch is currently assigned to ${studentCount} student${studentCount === 1 ? '' : 's'}. Remove or move the students to another batch before deleting the batch.`,
+        details: { memberCount: studentCount, sessionCount },
+      });
+    }
+
+    if (sessionCount > 0) {
+      throw new ConflictException({
+        code: 'PLACEMENT_BATCH_HAS_SESSIONS',
+        message: `Cannot delete placement batch '${pb.name}'. It is currently referenced by ${sessionCount} class session${sessionCount === 1 ? '' : 's'}.`,
+        details: { sessionCount },
+      });
     }
 
     await this.prisma.placementBatch.delete({ where: { id } });

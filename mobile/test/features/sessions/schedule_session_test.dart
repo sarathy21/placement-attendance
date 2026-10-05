@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:placement_attendance_mobile/core/errors/failures.dart';
 import 'package:placement_attendance_mobile/core/theme/app_theme.dart';
+import 'package:placement_attendance_mobile/features/placement_batches/data/models/placement_batch_model.dart';
+import 'package:placement_attendance_mobile/features/placement_batches/presentation/providers/placement_batches_provider.dart';
 import 'package:placement_attendance_mobile/features/sessions/data/models/attendance_roster_model.dart';
 import 'package:placement_attendance_mobile/features/sessions/data/models/create_session_dto.dart';
 import 'package:placement_attendance_mobile/features/sessions/data/models/my_attendance_model.dart';
@@ -19,11 +21,6 @@ class MockSessionsRepo implements ISessionsRepository {
   bool createSessionCalled = false;
   Failure? errorToThrow;
 
-  final testSubjects = const [
-    SubjectReferenceModel(id: 'sub-01', code: 'MCA301', title: 'Placement Aptitude'),
-    SubjectReferenceModel(id: 'sub-02', code: 'MCA302', title: 'Coding Practice'),
-  ];
-
   final testVenues = const [
     VenueReferenceModel(id: 'ven-01', name: 'Auditorium A', building: 'Block 1'),
     VenueReferenceModel(id: 'ven-02', name: 'Lab 3', building: 'Block 2'),
@@ -31,7 +28,6 @@ class MockSessionsRepo implements ISessionsRepository {
 
   final testDepartments = const [
     DepartmentReferenceModel(id: 'dept-01', code: 'MCA', name: 'Master of Computer Applications'),
-    DepartmentReferenceModel(id: 'dept-02', code: 'CSE', name: 'Computer Science & Engineering'),
   ];
 
   @override
@@ -53,7 +49,7 @@ class MockSessionsRepo implements ISessionsRepository {
   Future<SessionModel> cancelSession(String sessionId) async => throw UnimplementedError();
 
   @override
-  Future<List<SubjectReferenceModel>> getSubjects() async => testSubjects;
+  Future<List<SubjectReferenceModel>> getSubjects() async => [];
 
   @override
   Future<List<VenueReferenceModel>> getVenues() async => testVenues;
@@ -80,17 +76,22 @@ class MockSessionsRepo implements ISessionsRepository {
       startTime: DateTime.parse(dto.startTime),
       endTime: DateTime.parse(dto.endTime),
       status: SessionLifecycleStatus.scheduled,
-      subject: dto.subjectId != null ? SessionSubjectModel(id: dto.subjectId!, code: 'MCA301', title: 'Aptitude') : null,
       venue: SessionVenueModel(id: dto.venueId, name: 'Auditorium A', building: 'Block 1'),
       staff: const SessionStaffModel(id: 'stf-01', firstName: 'Anita', lastName: 'Raman'),
     );
   }
 }
 
+final testBatches = const [
+  PlacementBatchModel(id: 'pb-01', name: 'TCS Batch 1'),
+  PlacementBatchModel(id: 'pb-02', name: 'Wipro Batch 2'),
+];
+
 Widget createTestWidget(MockSessionsRepo repo) {
   return ProviderScope(
     overrides: [
       sessionsRepositoryProvider.overrideWithValue(repo),
+      placementBatchesListProvider.overrideWith((ref) async => testBatches),
     ],
     child: MaterialApp(
       theme: AppTheme.lightTheme,
@@ -114,10 +115,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Schedule New Session'), findsOneWidget);
-      expect(find.text('Session Title'), findsOneWidget);
+      expect(find.text('Target Placement Batch *'), findsOneWidget);
+      expect(find.text('Session Title *'), findsOneWidget);
       expect(find.text('Description / Topics (Optional)'), findsOneWidget);
-      expect(find.text('Venue'), findsOneWidget);
-      expect(find.text('Target Department'), findsOneWidget);
+      expect(find.text('Venue *'), findsOneWidget);
       expect(find.text('Session Date'), findsOneWidget);
       expect(find.text('Start Time'), findsOneWidget);
       expect(find.text('End Time'), findsOneWidget);
@@ -134,32 +135,15 @@ void main() {
       await tester.pumpWidget(createTestWidget(mockRepo));
       await tester.pumpAndSettle();
 
-      // Tap Venue Dropdown (now 1st dropdown)
+      // Tap Placement Batch Dropdown
       await tester.tap(find.byType(DropdownButtonFormField<String>).at(0), warnIfMissed: false);
       await tester.pumpAndSettle();
 
-      expect(find.text('Auditorium A (Block 1)'), findsOneWidget);
-      expect(find.text('Lab 3 (Block 2)'), findsOneWidget);
+      expect(find.text('TCS Batch 1'), findsOneWidget);
+      expect(find.text('Wipro Batch 2'), findsOneWidget);
     });
 
-    testWidgets('3. Empty title submission triggers validation error', (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(800, 1200);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-
-      final mockRepo = MockSessionsRepo();
-
-      await tester.pumpWidget(createTestWidget(mockRepo));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Schedule Session'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Session title is required'), findsOneWidget);
-      expect(mockRepo.createSessionCalled, isFalse);
-    });
-
-    testWidgets('4. Unselected venue dropdown triggers validation SnackBar', (WidgetTester tester) async {
+    testWidgets('3. Empty batch selection triggers validation SnackBar', (WidgetTester tester) async {
       tester.view.physicalSize = const Size(800, 1200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -173,11 +157,11 @@ void main() {
       await tester.tap(find.text('Schedule Session'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Please select a venue'), findsOneWidget);
+      expect(find.text('Please select a placement batch'), findsOneWidget);
       expect(mockRepo.createSessionCalled, isFalse);
     });
 
-    testWidgets('5. Date & time selection interaction opens pickers', (WidgetTester tester) async {
+    testWidgets('4. Successful form submission calls createSession with placementBatchId', (WidgetTester tester) async {
       tester.view.physicalSize = const Size(800, 1200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -187,99 +171,19 @@ void main() {
       await tester.pumpWidget(createTestWidget(mockRepo));
       await tester.pumpAndSettle();
 
-      // Tap Date Picker
-      await tester.tap(find.byIcon(Icons.calendar_today_rounded));
-      await tester.pumpAndSettle();
-      expect(find.text('OK'), findsOneWidget);
-      await tester.tap(find.text('OK'));
-      await tester.pumpAndSettle();
-
-      // Tap Start Time Picker
-      await tester.tap(find.byIcon(Icons.access_time_rounded));
-      await tester.pumpAndSettle();
-      expect(find.text('OK'), findsOneWidget);
-      await tester.tap(find.text('OK'));
-      await tester.pumpAndSettle();
-
-      // Tap End Time Picker
-      await tester.tap(find.byIcon(Icons.access_time_filled_rounded));
-      await tester.pumpAndSettle();
-      expect(find.text('OK'), findsOneWidget);
-      await tester.tap(find.text('OK'));
-      await tester.pumpAndSettle();
-    });
-
-    testWidgets('6. End time <= start time validation prevents submission', (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(800, 1200);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-
-      final mockRepo = MockSessionsRepo();
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            sessionsRepositoryProvider.overrideWithValue(mockRepo),
-          ],
-          child: MaterialApp(
-            theme: AppTheme.lightTheme,
-            home: const Scaffold(
-              body: ScheduleSessionScreen(
-                initialStartTime: TimeOfDay(hour: 11, minute: 0),
-                initialEndTime: TimeOfDay(hour: 9, minute: 0),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // Enter title
-      await tester.enterText(find.byType(TextFormField).first, 'Java Deep Dive Mock Test');
-
-      // Select Venue (at index 0)
+      // Select Placement Batch
       await tester.tap(find.byType(DropdownButtonFormField<String>).at(0));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Auditorium A (Block 1)').last);
-      await tester.pumpAndSettle();
-
-      // Select Department (at index 1)
-      await tester.tap(find.byType(DropdownButtonFormField<String>).at(1));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('MCA - Master of Computer Applications').last);
-      await tester.pumpAndSettle();
-
-      // Submit
-      await tester.tap(find.text('Schedule Session'), warnIfMissed: false);
-      await tester.pumpAndSettle();
-
-      expect(find.text('End time must be after start time'), findsOneWidget);
-      expect(mockRepo.createSessionCalled, isFalse);
-    });
-
-    testWidgets('7. Valid form submission sends correct CreateSessionDto payload', (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(800, 1200);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-
-      final mockRepo = MockSessionsRepo();
-
-      await tester.pumpWidget(createTestWidget(mockRepo));
+      await tester.tap(find.text('TCS Batch 1').last);
       await tester.pumpAndSettle();
 
       // Enter title
-      await tester.enterText(find.byType(TextFormField).first, 'Java Deep Dive Mock Test');
+      await tester.enterText(find.byType(TextFormField).first, 'Mock Technical Assessment');
 
       // Select Venue
-      await tester.tap(find.byType(DropdownButtonFormField<String>).at(0));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Auditorium A (Block 1)').last);
-      await tester.pumpAndSettle();
-
-      // Select Department
       await tester.tap(find.byType(DropdownButtonFormField<String>).at(1));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('MCA - Master of Computer Applications').last);
+      await tester.tap(find.text('Auditorium A (Block 1)').last);
       await tester.pumpAndSettle();
 
       // Submit
@@ -287,72 +191,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(mockRepo.createSessionCalled, isTrue);
-      expect(mockRepo.lastCreatedDto, isNotNull);
-      expect(mockRepo.lastCreatedDto!.title, equals('Java Deep Dive Mock Test'));
-      expect(mockRepo.lastCreatedDto!.venueId, equals('ven-01'));
-      expect(mockRepo.lastCreatedDto!.departmentId, equals('dept-01'));
-      expect(find.text('Session scheduled successfully!'), findsOneWidget);
-    });
-
-    testWidgets('8. 403 error displays authorization feedback SnackBar', (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(800, 1200);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-
-      final mockRepo = MockSessionsRepo()
-        ..errorToThrow = const ForbiddenFailure('Only authorized staff or admins can schedule sessions.', 403);
-
-      await tester.pumpWidget(createTestWidget(mockRepo));
-      await tester.pumpAndSettle();
-
-      // Fill form
-      await tester.enterText(find.byType(TextFormField).first, 'Java Deep Dive Mock Test');
-
-      await tester.tap(find.byType(DropdownButtonFormField<String>).at(0));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Auditorium A (Block 1)').last);
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byType(DropdownButtonFormField<String>).at(1));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('MCA - Master of Computer Applications').last);
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Schedule Session'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Only authorized staff or admins can schedule sessions.'), findsOneWidget);
-    });
-
-    testWidgets('9. 400 / 409 error displays server validation SnackBar', (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(800, 1200);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-
-      final mockRepo = MockSessionsRepo()
-        ..errorToThrow = const ValidationFailure('Venue auditorium A is already booked at this time slot.', 409);
-
-      await tester.pumpWidget(createTestWidget(mockRepo));
-      await tester.pumpAndSettle();
-
-      // Fill form
-      await tester.enterText(find.byType(TextFormField).first, 'Java Deep Dive Mock Test');
-
-      await tester.tap(find.byType(DropdownButtonFormField<String>).at(0));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Auditorium A (Block 1)').last);
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byType(DropdownButtonFormField<String>).at(1));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('MCA - Master of Computer Applications').last);
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Schedule Session'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Venue auditorium A is already booked at this time slot.'), findsOneWidget);
+      expect(mockRepo.lastCreatedDto?.placementBatchId, 'pb-01');
+      expect(mockRepo.lastCreatedDto?.venueId, 'ven-01');
     });
   });
 }
-

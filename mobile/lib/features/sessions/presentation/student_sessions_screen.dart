@@ -55,9 +55,9 @@ class _StudentSessionsScreenState extends ConsumerState<StudentSessionsScreen>
           unselectedLabelColor: Colors.white70,
           labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           tabs: const [
-            Tab(text: "Today's"),
-            Tab(text: 'Upcoming'),
-            Tab(text: 'Completed'),
+            Tab(text: 'TODAY'),
+            Tab(text: 'YESTERDAY'),
+            Tab(text: 'TOMORROW'),
           ],
         ),
       ),
@@ -69,22 +69,22 @@ class _StudentSessionsScreenState extends ConsumerState<StudentSessionsScreen>
         ),
         data: (allSessions) {
           final now = DateTime.now();
-          final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+          final today = DateTime(now.year, now.month, now.day);
+          final yesterday = today.subtract(const Duration(days: 1));
+          final tomorrow = today.add(const Duration(days: 1));
 
-          final todaySessions = allSessions.where((s) {
-            final dateStr = '${s.startTime.year}-${s.startTime.month.toString().padLeft(2, '0')}-${s.startTime.day.toString().padLeft(2, '0')}';
-            return dateStr == todayStr;
-          }).toList();
+          bool isSameDay(DateTime a, DateTime b) {
+            return a.year == b.year && a.month == b.month && a.day == b.day;
+          }
 
-          final upcomingSessions = allSessions.where((s) {
-            return s.status == SessionLifecycleStatus.scheduled &&
-                s.startTime.isAfter(now);
-          }).toList();
+          final todaySessions = allSessions.where((s) => isSameDay(s.startTime, today)).toList()
+            ..sort((a, b) => a.startTime.compareTo(b.startTime));
 
-          final completedSessions = allSessions.where((s) {
-            return s.status == SessionLifecycleStatus.completed ||
-                s.status == SessionLifecycleStatus.cancelled;
-          }).toList();
+          final yesterdaySessions = allSessions.where((s) => isSameDay(s.startTime, yesterday)).toList()
+            ..sort((a, b) => a.startTime.compareTo(b.startTime));
+
+          final tomorrowSessions = allSessions.where((s) => isSameDay(s.startTime, tomorrow)).toList()
+            ..sort((a, b) => a.startTime.compareTo(b.startTime));
 
           return TabBarView(
             controller: _tabController,
@@ -93,22 +93,22 @@ class _StudentSessionsScreenState extends ConsumerState<StudentSessionsScreen>
                 context,
                 todaySessions,
                 attendanceMap,
-                emptyTitle: 'No Sessions Today',
-                emptyDescription: 'You have no placement or academic training sessions scheduled for today.',
+                emptyTitle: 'No sessions today',
+                emptyDescription: 'You have no placement sessions scheduled for today.',
               ),
               _buildSessionList(
                 context,
-                upcomingSessions,
+                yesterdaySessions,
                 attendanceMap,
-                emptyTitle: 'No Upcoming Sessions',
-                emptyDescription: 'Future placement training sessions will appear here once scheduled.',
+                emptyTitle: 'No sessions yesterday',
+                emptyDescription: 'No placement sessions occurred yesterday.',
               ),
               _buildSessionList(
                 context,
-                completedSessions,
+                tomorrowSessions,
                 attendanceMap,
-                emptyTitle: 'No Past Sessions',
-                emptyDescription: 'Your completed or past placement sessions history will be listed here.',
+                emptyTitle: 'No sessions tomorrow',
+                emptyDescription: 'No placement sessions scheduled for tomorrow.',
               ),
             ],
           );
